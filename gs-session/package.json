@@ -1,0 +1,14 @@
+{
+  "name": "gs-session",
+  "version": "1.0.0",
+  "description": "AI 시대, 일하는 방식의 재설계 - GS AI 조직 세션",
+  "scripts": {
+    "build": "node scripts/build.js",
+    "dev": "npm run build && open dist/lecture.html",
+    "serve": "npm run build && node scripts/server.js",
+    "watch": "nodemon --watch slides --exec 'npm run build'"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.0"
+  }
+}

@@ -1,0 +1,29 @@
+</div>
+
+<div class="progress" id="prog"></div>
+<div class="counter" id="cnt">1 / 21</div>
+<div class="hint">&larr; &rarr; &middot; N 노트</div>
+<div class="notes-panel" id="np"><div class="nlbl">Speaker Notes (N)</div><div id="nc"></div></div>
+
+<script>
+(function(){
+  var sl=document.querySelectorAll('.slide'),tot=sl.length,cur=0,no=false;
+  function go(i){if(i<0||i>=tot)return;sl[cur].classList.remove('active');cur=i;sl[cur].classList.add('active');
+    document.getElementById('prog').style.width=((cur+1)/tot*100)+'%';
+    document.getElementById('cnt').textContent=(cur+1)+' / '+tot;
+    document.getElementById('nc').textContent=sl[cur].dataset.n||'';
+  }
+  go(0);
+  document.addEventListener('keydown',function(e){
+    if(e.key==='ArrowRight'||e.key===' '){e.preventDefault();go(cur+1);}
+    else if(e.key==='ArrowLeft'){e.preventDefault();go(cur-1);}
+    else if(e.key==='n'||e.key==='N'){no=!no;document.getElementById('np').classList.toggle('open',no);}
+    else if(e.key==='Home')go(0);else if(e.key==='End')go(tot-1);
+  });
+  var tx=0;
+  document.addEventListener('touchstart',function(e){tx=e.changedTouches[0].screenX;},{passive:true});
+  document.addEventListener('touchend',function(e){var d=e.changedTouches[0].screenX-tx;if(d<-50)go(cur+1);else if(d>50)go(cur-1);},{passive:true});
+})();
+</script>
+</body>
+</html>
