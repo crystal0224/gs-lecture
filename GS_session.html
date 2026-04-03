@@ -36,9 +36,20 @@
 *{margin:0;padding:0;box-sizing:border-box;}
 html,body{width:100vw;height:100vh;overflow:hidden;font-family:'Pretendard Variable',Pretendard,'Inter',system-ui,sans-serif;background:#000;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;}
 
+/* ═══ ANIMATIONS ═══ */
+@keyframes blurIn{0%{opacity:0;filter:blur(8px);transform:translateY(12px);}100%{opacity:1;filter:blur(0);transform:translateY(0);}}
+@keyframes sweep{0%{background-size:0% 100%;}100%{background-size:100% 100%;}}
+
 /* ═══ SLIDE BASE + TRANSITION ═══ */
-.slide{position:absolute;inset:0;opacity:0;pointer-events:none;transform:translateY(8px);transition:var(--transition-slide);background:var(--white);}
-.slide.active{opacity:1;pointer-events:auto;transform:translateY(0);}
+.slide{position:absolute;inset:0;opacity:0;pointer-events:none;background:var(--white); transition: opacity .4s ease;}
+.slide.active{opacity:1;pointer-events:auto;z-index:10;}
+
+/* STAGGERED CASCADE */
+.slide.active > .tag, .slide.active .lt > .tag { animation: blurIn 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) 0.15s both; }
+.slide.active > h1, .slide.active > h2, .slide.active .lt > h2 { animation: blurIn 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) 0.25s both; }
+.slide.active > .lead, .slide.active > .point { animation: blurIn 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) 0.4s both; }
+.slide.active > .qb, .slide.active > .nl, .slide.active > .vsgrid, .slide.active > .grid3, .slide.active > div > span, .slide.active .lt > div, .slide.active .rt > div > .vsgrid { animation: blurIn 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) 0.5s both; }
+.slide.active .lt > .scene, .slide.active .lt > .body, .slide.active .rt > div > p, .slide.active .rt > div > div { animation: blurIn 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) 0.6s both; }
 
 /* ═══ LAYOUTS ═══ */
 .slide.c{display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:56px 8vw;}
@@ -50,16 +61,17 @@ html,body{width:100vw;height:100vh;overflow:hidden;font-family:'Pretendard Varia
 
 /* ═══ THEMES ═══ */
 .slide.ink{background:var(--g900);color:var(--g100);}
-.slide.ink .em{color:var(--accent-vivid);}
-.slide.warm{background:linear-gradient(160deg,#FAFBFE 0%,#EFF4FF 50%,#F0F4FF 100%);}
-.slide.blue-bg{background:linear-gradient(145deg,#2563EB 0%,#1D4ED8 40%,var(--blue-deep) 100%);color:var(--white);}
-.slide.blue-bg .em{color:var(--accent-vivid);}
-.slide.ink .tag,.slide.blue-bg .tag{color:var(--accent-vivid);}
-.slide.sp.ink .rt.vis{background:var(--g800);}
-.slide.sp.warm .rt.vis{background:#E0E7FF;}
+.slide.ink .em{color:var(--white);font-weight:700;}
+.slide.warm{background:var(--g50);}
+.slide.blue-bg{background:#1E3A5F;color:var(--white);}
+.slide.blue-bg .em{color:var(--white);font-weight:700;}
+.slide.ink .tag,.slide.blue-bg .tag{color:var(--g400);}
+.slide.sp .rt.vis{background:var(--g50); border-left:1px solid var(--g200);}
+.slide.sp.ink .rt.vis{background:var(--g800); border-left:1px solid rgba(255,255,255,.05);}
+.slide.sp.warm .rt.vis{background:var(--white); border-left:1px solid var(--g200);}
 
 /* ═══ L5 — TAG/CAPTION ═══ */
-.tag{display:inline-block;font-family:'Inter','Pretendard Variable',Pretendard,sans-serif;font-size:clamp(13px,1.1vw,15px);font-weight:700;letter-spacing:3px;text-transform:uppercase;margin-bottom:16px;color:var(--accent);opacity:.85;}
+.tag{display:inline-block;font-family:'Inter','Pretendard Variable',Pretendard,sans-serif;font-size:clamp(13px,1.1vw,15px);font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:16px;color:var(--g500);opacity:.9;}
 
 /* ═══ L1 — DISPLAY ═══ */
 h1{font-size:clamp(42px,5vw,68px);font-weight:900;line-height:1.15;letter-spacing:-1.5px;}
@@ -68,11 +80,12 @@ h1{font-size:clamp(42px,5vw,68px);font-weight:900;line-height:1.15;letter-spacin
 h2{font-size:clamp(30px,3.5vw,48px);font-weight:800;line-height:1.25;letter-spacing:-.5px;}
 .sp h2{font-size:clamp(26px,3vw,40px);}
 
-/* ═══ EMPHASIS — gradient underline ═══ */
-.em{color:var(--accent);position:relative;}
-.slide.ink .em{color:var(--accent-vivid);}
-.slide.blue-bg .em{color:var(--accent-vivid);}
-.accent{color:var(--accent);}
+/* ═══ EMPHASIS — dynamic sweep ═══ */
+.em{color:var(--blue-dark);font-weight:800;position:relative;background:linear-gradient(90deg,rgba(59,130,246,0.15) 0%,rgba(59,130,246,0.15) 100%);background-repeat:no-repeat;background-size:0% 100%;background-position:0 100%;padding:2px 4px;border-radius:4px;}
+.slide.active .em{animation: sweep 0.6s cubic-bezier(0.2,0.8,0.2,1) 0.7s both;}
+.slide.ink .em{color:var(--white);font-weight:700;background:linear-gradient(90deg,rgba(96,165,250,0.2) 0%,rgba(96,165,250,0.2) 100%);}
+.slide.blue-bg .em{color:var(--white);font-weight:700;background:linear-gradient(90deg,rgba(255,255,255,0.15) 0%,rgba(255,255,255,0.15) 100%);}
+.accent{color:var(--blue-dark);}
 
 /* ═══ L4 — BODY/LEAD ═══ */
 .lead{font-size:clamp(17px,1.6vw,21px);line-height:1.8;color:var(--g500);margin-top:18px;max-width:720px;font-weight:400;}
@@ -82,8 +95,8 @@ h2{font-size:clamp(30px,3.5vw,48px);font-weight:800;line-height:1.25;letter-spac
 .slide.ink .body{color:var(--g400);}
 
 /* ═══ L3 — POINT ═══ */
-.point{font-size:clamp(20px,2.2vw,28px);font-weight:700;line-height:1.5;color:var(--g800);max-width:720px;margin:16px 0;}
-.slide.ink .point{color:var(--g100);}
+.point{font-size:clamp(20px,2.2vw,28px);font-weight:700;line-height:1.5;color:var(--g900);max-width:720px;margin:16px 0;}
+.slide.ink .point{color:var(--white);}
 .slide.blue-bg .point{color:var(--white);}
 
 /* ═══ L5 — NOTE/REF ═══ */
@@ -92,28 +105,37 @@ h2{font-size:clamp(30px,3.5vw,48px);font-weight:800;line-height:1.25;letter-spac
 .slide.c .ref{left:8vw;}.slide.sp .ref{left:5vw;}
 
 /* ═══ QUOTE ═══ */
-.qb{padding:28px 32px;margin:20px 0;max-width:660px;background:var(--accent-soft);border-radius:var(--radius);text-align:left;box-shadow:var(--shadow-card);}
-.slide.ink .qb{background:rgba(37,99,235,.08);}
+.qb{padding:28px 32px;margin:20px 0;max-width:660px;background:var(--g50);border:1px solid var(--g200);border-radius:var(--radius);text-align:left;}
+.slide.ink .qb{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);}
 .qb p{font-size:clamp(20px,2.2vw,28px);font-weight:600;line-height:1.6;color:var(--g800);}
 .slide.ink .qb p{color:var(--g100);}
 
-/* ═══ SCENE — polished card ═══ */
-.scene{background:var(--white);border:1px solid var(--g200);border-radius:var(--radius);padding:24px 28px;margin:16px 0;font-size:clamp(17px,1.6vw,21px);line-height:1.8;color:var(--g700);text-align:left;max-width:600px;box-shadow:var(--shadow-card);}
-.slide.ink .scene{background:rgba(255,255,255,.03);border-color:rgba(255,255,255,.06);color:var(--g300);box-shadow:none;}
-.sc-label{font-family:'Inter','Pretendard Variable',Pretendard,sans-serif;font-size:clamp(13px,1.1vw,15px);font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--accent);margin-bottom:10px;}
+/* ═══ SCENE — narrative context ═══ */
+.scene{background:transparent;border:none;border-left:4px solid var(--blue);border-radius:0;padding:2px 0 2px 24px;margin:32px 0 16px 0;font-size:clamp(17px,1.6vw,21px);line-height:1.75;color:var(--g800);text-align:left;max-width:640px;transition:transform .3s ease;}
+.scene:hover{transform:translateX(3px);}
+.slide.ink .scene{background:transparent;border-left:4px solid var(--accent);border-top:none;border-right:none;border-bottom:none;color:var(--g300);}
+.sc-label{font-family:'Inter','Pretendard Variable',Pretendard,sans-serif;font-size:clamp(13px,1.1vw,15px);font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--g400);margin-bottom:8px;}
+.slide.ink .sc-label{color:var(--g500);}
 .scene strong{color:var(--g900);}.slide.ink .scene strong{color:var(--white);}
 
 /* ═══ DIAGRAM ═══ */
 .d-flow{display:flex;flex-direction:column;gap:8px;width:100%;max-width:380px;}
 .d-box{padding:14px 18px;border-radius:var(--radius-sm);font-size:clamp(17px,1.6vw,21px);font-weight:600;text-align:center;line-height:1.4;}
 .d-arr{text-align:center;font-size:20px;color:var(--g300);}
-.d-box.green{background:#DCFCE7;color:#166534;}.d-box.red{background:#FEE2E2;color:#991B1B;}.d-box.blue{background:#DBEAFE;color:#1E40AF;}.d-box.gray{background:var(--g100);color:var(--g600);}.d-box.orange{background:#DBEAFE;color:#1E40AF;}.d-box.accent-bg{background:var(--accent);color:var(--white);}
+.d-box.green{background:#DCFCE7;color:#166534;}
+.d-box.red{background:#FEE2E2;color:#991B1B;}
+.d-box.blue{background:#DBEAFE;color:#1E40AF;}
+.d-box.gray{background:var(--g100);color:var(--g600);}
+.d-box.orange{background:#DBEAFE;color:#1E40AF;}
+.d-box.accent-bg{background:var(--blue-dark);color:var(--white);}
 
 /* ═══ GRID CARDS ═══ */
 .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;width:100%;max-width:960px;margin:24px 0;}
-.gc{padding:26px 24px;border-radius:var(--radius);border:1px solid var(--g200);text-align:left;background:var(--white);box-shadow:var(--shadow-card);transition:box-shadow .2s;}
-.slide.ink .gc{border-color:rgba(255,255,255,.08);background:rgba(255,255,255,.02);box-shadow:none;}
-.gc .gc-n{font-family:'Inter','Pretendard Variable',Pretendard,sans-serif;font-size:clamp(13px,1.1vw,15px);font-weight:800;color:var(--accent);margin-bottom:8px;letter-spacing:1.5px;}
+.gc{padding:26px 24px;border-radius:var(--radius);border:1px solid var(--g200);text-align:left;background:var(--white); transition:transform .3s ease,box-shadow .3s ease;}
+.gc:hover{transform:translateY(-3px);box-shadow:0 8px 24px rgba(0,0,0,0.06);}
+.slide.ink .gc{border-color:rgba(255,255,255,.08);background:rgba(255,255,255,.02);}
+.slide.ink .gc:hover{box-shadow:0 8px 24px rgba(0,0,0,0.25);}
+.gc .gc-n{font-family:'Inter','Pretendard Variable',Pretendard,sans-serif;font-size:clamp(13px,1.1vw,15px);font-weight:800;color:var(--g500);margin-bottom:8px;letter-spacing:1px;}
 .gc .gc-t{font-size:clamp(17px,1.6vw,21px);font-weight:700;color:var(--g900);margin-bottom:6px;}
 .slide.ink .gc .gc-t{color:var(--white);}
 .gc .gc-d{font-size:clamp(17px,1.6vw,21px);color:var(--g500);line-height:1.65;}
@@ -121,21 +143,24 @@ h2{font-size:clamp(30px,3.5vw,48px);font-weight:800;line-height:1.25;letter-spac
 
 /* ═══ VS GRID ═══ */
 .vsgrid{display:grid;grid-template-columns:1fr 1fr;gap:24px;width:100%;max-width:720px;margin:20px 0;}
-.vs-side{padding:24px 22px;border-radius:var(--radius);text-align:left;}
-.vs-a{background:var(--g50);border:1px solid var(--g200);}
-.vs-b{background:#EFF6FF;border:2px solid var(--accent);box-shadow:0 0 0 3px rgba(59,130,246,.1);}
-.slide.ink .vs-a{background:rgba(255,255,255,.03);border-color:rgba(255,255,255,.08);}
-.slide.ink .vs-b{background:rgba(59,130,246,.08);border-color:var(--accent);}
+.vs-side{padding:24px 22px;border-radius:var(--radius);text-align:left;transition:transform .3s ease,box-shadow .3s ease;}
+.vs-side:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,0.04);}
+.vs-a{background:var(--white);border:1px solid var(--g200);}
+.vs-b{background:var(--g50);border:1px solid var(--g300);}
+.slide.ink .vs-a{background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06);}
+.slide.ink .vs-b{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.15);}
+.slide.ink .vs-side:hover{box-shadow:0 8px 24px rgba(0,0,0,0.25);}
 .vs-lbl{font-family:'Inter','Pretendard Variable',Pretendard,sans-serif;font-size:clamp(13px,1.1vw,15px);font-weight:700;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:12px;}
-.vs-a .vs-lbl{color:var(--g400);}.vs-b .vs-lbl{color:var(--accent);}
+.vs-a .vs-lbl{color:var(--g400);}.vs-b .vs-lbl{color:var(--g800);}
+.slide.ink .vs-a .vs-lbl{color:var(--g500);}.slide.ink .vs-b .vs-lbl{color:var(--g300);}
 .vs-item{font-size:clamp(17px,1.6vw,21px);line-height:1.7;color:var(--g700);margin-bottom:3px;}
 .slide.ink .vs-item{color:var(--g300);}
 
 /* ═══ NUMBERED LIST ═══ */
 .nl{max-width:640px;margin:16px 0;text-align:left;}
 .ni{display:flex;gap:16px;align-items:flex-start;margin-bottom:18px;}
-.ni-n{flex-shrink:0;width:30px;height:30px;border-radius:50%;background:var(--accent);color:white;font-family:'Inter',sans-serif;font-size:14px;font-weight:800;display:flex;align-items:center;justify-content:center;margin-top:3px;box-shadow:0 2px 6px rgba(59,130,246,.25);}
-.slide.ink .ni-n{background:var(--accent-vivid);color:var(--g900);}
+.ni-n{flex-shrink:0;width:30px;height:30px;border-radius:50%;background:var(--g800);color:white;font-family:'Inter',sans-serif;font-size:14px;font-weight:800;display:flex;align-items:center;justify-content:center;margin-top:3px;}
+.slide.ink .ni-n{background:var(--white);color:var(--g900);}
 .ni-t{font-size:clamp(17px,1.6vw,21px);font-weight:600;color:var(--g800);}
 .slide.ink .ni-t{color:var(--g100);}
 .ni-d{font-size:clamp(17px,1.6vw,21px);color:var(--g500);margin-top:4px;line-height:1.65;}
@@ -143,28 +168,28 @@ h2{font-size:clamp(30px,3.5vw,48px);font-weight:800;line-height:1.25;letter-spac
 
 /* ═══ CHIPS ═══ */
 .chips{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0;}
-.chip{padding:10px 18px;border-radius:30px;font-size:clamp(14px,1.2vw,16px);font-weight:600;border:2px solid;transition:transform .15s;}
-.chip.c1{background:#FEF2F2;border-color:#FECACA;color:#991B1B;}
-.chip.c2{background:#F1F5F9;border-color:#CBD5E1;color:#334155;}
-.chip.c3{background:#EFF6FF;border-color:#BFDBFE;color:#1E40AF;}
-.chip.c4{background:#F1F5F9;border-color:#CBD5E1;color:#475569;}
-.chip.c5{background:#EFF6FF;border-color:#93C5FD;color:#1E3A5F;}
+.chip{padding:10px 18px;border-radius:30px;font-size:clamp(14px,1.2vw,16px);font-weight:600;border:1px solid;transition:transform .15s;}
+.chip.c1, .chip.c2, .chip.c3, .chip.c4, .chip.c5 {
+  background:var(--white);border-color:var(--g200);color:var(--g800);
+}
 
 /* ═══ RT CARD ═══ */
-.rt-card{padding:20px 22px;background:var(--white);border-radius:var(--radius);margin-bottom:12px;box-shadow:var(--shadow-card);}
-.slide.ink .rt-card{background:rgba(255,255,255,.04);box-shadow:none;}
+.rt-card{padding:20px 22px;background:var(--white);border:1px solid var(--g200);border-radius:var(--radius);margin-bottom:12px;transition:transform .3s ease,box-shadow .3s ease;}
+.rt-card:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,0.05);}
+.slide.ink .rt-card{background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.08);}
+.slide.ink .rt-card:hover{box-shadow:0 6px 20px rgba(0,0,0,0.2);}
 .rt-card .rc-t{font-size:clamp(17px,1.6vw,21px);font-weight:700;color:var(--g900);margin-bottom:4px;}
 .slide.ink .rt-card .rc-t{color:var(--white);}
 .rt-card .rc-d{font-size:clamp(17px,1.6vw,21px);color:var(--g500);line-height:1.6;}
 .slide.ink .rt-card .rc-d{color:var(--g400);}
 
 /* ═══ NAV — gradient progress + refined counter ═══ */
-.progress{position:fixed;bottom:0;left:0;height:3px;background:linear-gradient(90deg,var(--accent),var(--accent-vivid));z-index:200;transition:width .5s cubic-bezier(.4,0,.2,1);box-shadow:0 0 12px rgba(59,130,246,.3);}
-.counter{position:fixed;bottom:14px;right:28px;font-family:'Inter',sans-serif;font-size:13px;font-weight:500;color:rgba(150,150,150,.3);z-index:200;letter-spacing:.5px;}
-.hint{position:fixed;bottom:14px;left:28px;font-family:'Inter',sans-serif;font-size:13px;color:rgba(150,150,150,.2);z-index:200;letter-spacing:.3px;}
+.progress{position:fixed;bottom:0;left:0;height:2px;background:var(--g300);z-index:200;transition:width .5s cubic-bezier(.4,0,.2,1);}
+.counter{position:fixed;bottom:14px;right:28px;font-family:'Inter',sans-serif;font-size:13px;font-weight:500;color:rgba(150,150,150,.4);z-index:200;letter-spacing:.5px;}
+.hint{position:fixed;bottom:14px;left:28px;font-family:'Inter',sans-serif;font-size:13px;color:rgba(150,150,150,.3);z-index:200;letter-spacing:.3px;}
 .notes-panel{position:fixed;bottom:0;left:0;right:0;background:rgba(15,23,42,.97);color:var(--g300);padding:24px 8vw;font-size:16px;line-height:1.8;max-height:36vh;overflow-y:auto;z-index:300;transform:translateY(100%);transition:transform .35s cubic-bezier(.4,0,.2,1);backdrop-filter:blur(12px);border-top:1px solid rgba(255,255,255,.06);}
 .notes-panel.open{transform:translateY(0);}
-.notes-panel .nlbl{font-family:'Inter','Pretendard Variable',Pretendard,sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;color:var(--accent-vivid);margin-bottom:8px;}
+.notes-panel .nlbl{font-family:'Inter','Pretendard Variable',Pretendard,sans-serif;font-size:13px;font-weight:700;letter-spacing:1px;color:var(--g400);margin-bottom:8px;}
 
 /* ═══ RESPONSIVE ═══ */
 @media(max-width:900px){.slide.sp{grid-template-columns:1fr;}.slide.c{padding:32px 5vw;}.grid3{grid-template-columns:1fr;}.vsgrid{grid-template-columns:1fr;}}
@@ -217,16 +242,12 @@ h2{font-size:clamp(30px,3.5vw,48px);font-weight:800;line-height:1.25;letter-spac
   <div class="lt">
     <div class="tag">여러분의 경험</div>
     <h2>이런 적 <span class="em">있으시죠?</span></h2>
-    <div class="scene" style="margin-top:20px;">
-      <div class="sc-label">장면 1</div>
-      AI로 만든 기획서를 슬랙에 올렸습니다.<br>반응: 👍 하나. 그리고 <strong>침묵.</strong><br>잘 만든 건데, 왜 아무도 말이 없지?
-    </div>
-    <div class="scene">
-      <div class="sc-label">장면 2</div>
-      3일이면 되는 프로젝트에 "1개월로 갑시다" 소리를 듣습니다.<br><strong>말 못 합니다.</strong> 말해봤자 돌아오는 건 더 많은 일뿐이니까요.
+    <div style="margin-top:40px;width:100%;max-width:560px;aspect-ratio:16/9;background:var(--white);border:2px dashed var(--g300);border-radius:var(--radius);display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--g500);text-align:center;">
+      <span style="font-size:clamp(16px,1.4vw,19px);font-weight:600;letter-spacing:1px;margin-bottom:8px;">관련 이미지 플레이스홀더</span>
+      <span style="font-size:14px;opacity:0.7;">(슬랙 화면 캡처나 답답함을 묘사하는 이미지 교체용)</span>
     </div>
   </div>
-  <div class="rt vis" style="background:#EFF6FF;">
+  <div class="rt vis">
     <div style="max-width:340px;text-align:left;">
       <p style="font-size:clamp(20px,2.2vw,28px);font-weight:800;color:var(--g900);line-height:1.45;">AI를 잘 쓸수록<br><span style="color:var(--accent);">더 답답해지는</span><br>경험을 하고 계시죠.</p>
       <p style="margin-top:20px;font-size:clamp(17px,1.6vw,21px);color:var(--g600);line-height:1.7;">팀에 전파하려 했는데 반응이 없고,<br>혼자 빠르게 해봤자 보상은 없고,<br>설명하려 해도 거리만 벌어지고.</p>
@@ -248,7 +269,7 @@ h2{font-size:clamp(30px,3.5vw,48px);font-weight:800;line-height:1.25;letter-spac
       <strong>"제가 판단한 건데요"라고 말하면서도, 어딘가 찜찜합니다.</strong>
     </div>
   </div>
-  <div class="rt vis" style="background:var(--accent-soft);">
+  <div class="rt vis">
     <div style="max-width:340px;text-align:left;">
       <p style="font-size:clamp(20px,2.2vw,28px);font-weight:800;color:var(--g900);line-height:1.45;">이건 남의 이야기가<br>아닙니다.</p>
       <p style="margin-top:16px;font-size:clamp(17px,1.6vw,21px);color:var(--g500);line-height:1.7;">AI를 많이 쓸수록,<br>"이게 내 판단인가 AI 판단인가"의<br>경계가 흐려집니다.<br><br>결과물은 있는데<br><strong style="color:var(--accent);">판단한 사람이 모호해지면</strong><br>피드백도 성립하지 않고,<br>팀의 대화가 끊깁니다.</p>
@@ -259,37 +280,38 @@ h2{font-size:clamp(30px,3.5vw,48px);font-weight:800;line-height:1.25;letter-spac
 </section>
 
 <!-- ═══ 05 LOSS 3 — 대화 소멸 + 누덕누덕 (split, ink) ═══ -->
-<section class="slide sp ink" data-n="다음 건 좀 소름 끼치는 이야기인데요. AI가 들어오면 뭐가 줄어들까요? 업무 시간? 아뇨. 대화가 줄어요. 근데 줄어드는 대화가 잡담이 아닙니다. '이거 어떻게 생각해?', '이 방향 맞아?' — 팀을 팀으로 만드는 질문들이 사라져요. 왜? AI한테 물어보면 되니까. 더 무서운 건 이겁니다. 각자 AI로 만든 결과물을 이어 붙이는데, 아무도 내부 구조를 완전히 이해 못 해요. 일반적인 문제면 AI가 적당히 잘 처리합니다. 그런데 우리 조직만의 맥락이 들어가는 순간? '이거 못 쓰겠는데?'가 터지기 시작해요. 누덕누덕 이어 붙인 결과물이 쌓이면, 고칠 때 배보다 배꼽이 더 커집니다.">
+<section class="slide sp ink" data-n="다음 건 좀 소름 끼치는 이야기인데요. AI가 들어오면 뭐가 줄어들까요? 업무 시간? 아뇨. 대화가 줄어요. 근데 줄어드는 대화가 잡담이 아닙니다. '이거 어떻게 생각해?', '이 방향 맞아?' — 팀을 팀으로 만드는 질문들이 사라져요. 왜? AI한테 물어보면 되니까.">
   <div class="lt">
     <div class="tag">대화의 소멸</div>
     <h2>"물어볼 이유가<br>사라진다"</h2>
-    <p class="lead" style="margin-top:16px;">AI로 초안을 뽑아서 공유하면<br>"이 정도면 되겠는데?" "응, 괜찮네" 끝.<br>예전엔 백지에서 30분은 대화했습니다.</p>
-    <div class="scene" style="margin-top:16px;">
-      <div class="sc-label">더 깊은 문제</div>
-      각자 AI로 만든 결과물을 이어 붙입니다.<br>그런데 <strong>아무도 내부 구조를 완전히 이해하지 못합니다.</strong><br>
-      대중적인 문제면 AI가 적당히 처리해주지만,<br>우리 조직만의 맥락이 들어가면 —<br><strong>"이거 못 쓰겠는데?"가 펑펑 터지기 시작합니다.</strong>
-    </div>
+    <p class="lead" style="margin-top:24px;">AI로 초안을 뽑아서 공유하면<br>"이 정도면 되겠는데?" "응, 괜찮네" 끝.<br>예전엔 백지에서 30분은 대화했습니다.</p>
   </div>
-  <div class="rt vis" style="background:var(--g800);">
-    <div style="max-width:340px;text-align:left;">
-      <p style="font-size:clamp(16px,1.4vw,19px);font-weight:700;letter-spacing:1px;color:var(--accent);margin-bottom:14px;">줄어든 것</p>
-      <p style="font-size:clamp(17px,1.6vw,21px);color:var(--g300);line-height:1.8;margin-bottom:20px;">
-        "이거 어떻게 생각해?"<br>
-        "이 방향 맞아?"<br>
-        "혹시 비슷한 케이스?"<br>
-        <span style="opacity:.5;">→ 잡담이 아니라 팀을 팀으로 만드는 질문들</span>
+  <div class="rt vis">
+    <div style="max-width:400px;text-align:left;">
+      <p style="font-size:clamp(14px,1.2vw,16px);font-weight:700;letter-spacing:1px;color:var(--accent);margin-bottom:16px;">팀에서 사라진 질문들</p>
+      <p style="font-size:clamp(17px,1.6vw,21px);color:var(--g300);line-height:1.9;margin-bottom:32px;">
+        "이건 어떻게 생각해?"<br>
+        "우리가 가는 방향 맞아?"<br>
+        "혹시 비슷한 레퍼런스 있어?"
       </p>
-      <div style="border-top:1px solid rgba(255,255,255,.1);padding-top:16px;">
-        <p style="font-size:clamp(16px,1.4vw,19px);font-weight:700;letter-spacing:1px;color:#EF4444;margin-bottom:8px;">쌓이는 것</p>
-        <p style="font-size:clamp(17px,1.6vw,21px);color:var(--g300);line-height:1.7;">
-          아무도 완전히 이해 못 하는 결과물이<br>
-          <strong style="color:var(--white);">누덕누덕</strong> 이어 붙여짐<br>
-          → 고칠 때 배보다 배꼽이 커짐<br>
-          → <strong style="color:#EF4444;">터지고 나서야 발견</strong>
-        </p>
+      <div style="padding:20px 24px;border-radius:12px;background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.2);">
+        <p style="font-size:clamp(16px,1.4vw,19px);line-height:1.7;color:var(--white);">이건 잡담이 아니라<br><strong style="color:var(--accent-vivid);">팀을 팀으로 만드는 필수 과정</strong>이었습니다.</p>
       </div>
     </div>
   </div>
+</section>
+
+<!-- ═══ 05b LOSS 3 — 누덕누덕 (c, ink) ═══ -->
+<section class="slide c ink" data-n="더 무서운 건 이겁니다. 각자 AI로 만든 결과물을 이어 붙이는데, 아무도 내부 구조를 완전히 이해 못 해요. 일반적인 문제면 AI가 적당히 잘 처리합니다. 그런데 우리 조직만의 맥락이 들어가는 순간? '이거 못 쓰겠는데?'가 터지기 시작해요. 누덕누덕 이어 붙인 결과물이 쌓이면, 고칠 때 배보다 배꼽이 더 커집니다.">
+  <div class="tag">대화 소멸의 대가</div>
+  <h2 style="font-size:clamp(36px,4vw,56px);line-height:1.35;margin-bottom:24px;">아무도 맥락을 이해하지 못하는<br><span style="color:#EF4444;font-weight:900;">'누덕누덕 기획서'</span>의 탄생</h2>
+  <div class="qb" style="max-width:840px;margin:32px 0;background:rgba(239, 68, 68, 0.05);border-color:rgba(239, 68, 68, 0.2);text-align:left;padding:32px;">
+    각자 AI로 뽑은 결과물을 상호 확인 없이 <strong style="color:var(--white);">적당히 이어 붙입니다.</strong><br><br>
+    대중적인 문제면 넘어가지만,<br>우리 조직만의 <strong>특수한 맥락이 들어가는 순간 무너집니다.</strong>
+  </div>
+  <p class="point" style="margin-top:16px;font-size:clamp(18px,1.8vw,24px);">
+    고칠 때 배보다 배꼽이 더 커지는 이 부채는<br><span style="color:#EF4444;font-weight:700;">결국 시스템이 터지고 나서야</span> 발견됩니다.
+  </p>
 </section>
 
 <!-- ═══ 06 LOSS 3 — REWRITTEN (split) ═══ -->
@@ -331,9 +353,9 @@ h2{font-size:clamp(30px,3.5vw,48px);font-weight:800;line-height:1.25;letter-spac
     </div>
     <p class="body" style="margin-top:16px;">여러분 잘못이 아닙니다.<br>그런데 이 감정은 겉으로 드러나지 않습니다.<br>그 사람은 다음 회의에서 <strong style="color:var(--accent);">입을 닫습니다.</strong></p>
   </div>
-  <div class="rt vis" style="background:#FAFAFA;">
+  <div class="rt vis">
     <div style="max-width:340px;">
-      <p style="font-size:clamp(16px,1.4vw,19px);font-weight:700;letter-spacing:1.5px;color:var(--accent);margin-bottom:16px;">동료에게 쌓이는 것</p>
+      <p style="font-size:clamp(14px,1.2vw,16px);font-weight:700;letter-spacing:1.5px;color:var(--accent);margin-bottom:16px;">동료에게 쌓이는 것</p>
       <div class="chips" style="flex-direction:column;gap:10px;">
         <span class="chip c1" style="text-align:left;">정체성 위협 — 내 가치가 뭐지?</span>
         <span class="chip c2" style="text-align:left;">통제감 상실 — 설명 못 하는 결과물</span>
@@ -354,11 +376,11 @@ h2{font-size:clamp(30px,3.5vw,48px);font-weight:800;line-height:1.25;letter-spac
   <div class="tag">왜 이런 일이 벌어지는가</div>
   <h2>팀이 삐걱거리는 이유</h2>
   <div style="display:flex;align-items:center;gap:14px;margin:28px 0;flex-wrap:wrap;justify-content:center;font-size:clamp(20px,2.2vw,28px);font-weight:800;">
-    <span style="padding:14px 24px;border-radius:12px;background:linear-gradient(135deg,#2563EB,#1D4ED8);color:var(--white);box-shadow:0 4px 16px rgba(37,99,235,.25);">팀 성과</span>
+    <span style="padding:14px 24px;border-radius:12px;background:var(--g800);color:var(--white);">팀 성과</span>
     <span style="color:var(--g400);font-weight:500;">=</span>
-    <span style="padding:14px 24px;border-radius:12px;background:#E0F2FE;color:var(--blue-dark);box-shadow:0 2px 8px rgba(0,0,0,.04);">잠재 성과 <span style="color:#16A34A;">↑</span></span>
+    <span style="padding:14px 24px;border-radius:12px;background:var(--white);border:1px solid var(--g200);color:var(--g900);">잠재 성과 <span style="color:#16A34A;">↑</span></span>
     <span style="color:var(--g400);font-weight:500;">−</span>
-    <span style="padding:14px 24px;border-radius:12px;background:#FEE2E2;color:#991B1B;box-shadow:0 2px 8px rgba(220,38,38,.1);">프로세스 손실 <span style="color:#DC2626;">↑↑</span></span>
+    <span style="padding:14px 24px;border-radius:12px;background:var(--white);border:1px solid var(--g200);color:var(--g900);">프로세스 손실 <span style="color:#DC2626;">↑↑</span></span>
   </div>
   <p class="point" style="text-align:center;">네 가지 손실이 쌓이면<br>어느 순간 <span class="em">보이는 분열</span>로 터져 나옵니다.</p>
   <div class="ref">Steiner, I. D. (1972). Group Process and Productivity.</div>
@@ -375,7 +397,7 @@ h2{font-size:clamp(30px,3.5vw,48px);font-weight:800;line-height:1.25;letter-spac
       <div class="vs-item"><strong>초안 =</strong> 재료 <span style="color:var(--g400);">"같이 고치면 되지"</span></div>
       <div class="vs-item"><strong>방식:</strong> 5개 병렬 탐색 → 선택</div>
     </div>
-    <div class="vs-side" style="background:var(--g50);border:1px solid var(--g700);border-radius:12px;">
+    <div class="vs-side" style="background:var(--white);border:1px solid var(--g200);border-radius:12px;">
       <div class="vs-lbl" style="color:var(--g700);">비사용자</div>
       <div class="vs-item"><strong>속도:</strong> 3시간에 초안 1개</div>
       <div class="vs-item"><strong>초안 =</strong> 결과물 <span style="color:var(--g400);">"왜 덜 된 걸?"</span></div>
@@ -389,10 +411,10 @@ h2{font-size:clamp(30px,3.5vw,48px);font-weight:800;line-height:1.25;letter-spac
 <section class="slide c warm" data-n="여기서 하나 더 있어요. 사람 사이만 어긋나는 게 아닙니다. 도구 자체가 어긋나 있어요. 거의 모든 대기업이 내부 AI 플랫폼을 만들어서 쓰라고 합니다. 근데 외부에서 최신 모델로 교육받고 돌아가서 내부 플랫폼 열면 — 체감이 다르죠. 이게 반복되면 도구에 대한 불신이 그걸 추진하는 사람에 대한 불신으로 바뀝니다.">
   <div class="tag">도구의 어긋남</div>
   <h2>같은 프롬프트,<br><span class="em">다른 결과</span></h2>
-  <div style="display:flex;align-items:center;gap:14px;margin:32px 0;flex-wrap:wrap;justify-content:center;font-size:clamp(20px,2.2vw,28px);font-weight:700;">
-    <span style="padding:14px 24px;border-radius:12px;background:#E0F2FE;color:var(--blue-dark);">외부 AI로 교육</span>
-    <span style="color:var(--g400);font-weight:500;">→</span>
-    <span style="padding:14px 24px;border-radius:12px;background:#FEE2E2;color:#991B1B;">내부 플랫폼에서 재현 안 됨</span>
+  <div style="display:flex;align-items:stretch;gap:32px;margin:40px 0;flex-wrap:wrap;justify-content:center;font-size:clamp(20px,2.2vw,28px);font-weight:700;width:100%;max-width:920px;">
+    <span style="flex:1;display:flex;align-items:center;justify-content:center;min-width:300px;padding:40px 24px;border-radius:16px;background:var(--white);border:1px solid var(--g200);color:var(--g900);">외부 AI로 교육</span>
+    <span style="color:var(--g400);font-weight:500;display:flex;align-items:center;">→</span>
+    <span style="flex:1;display:flex;align-items:center;justify-content:center;min-width:300px;padding:40px 24px;border-radius:16px;background:var(--white);border:1px solid var(--g200);color:var(--g900);">내부 플랫폼에서 재현 안 됨</span>
   </div>
   <p class="point" style="text-align:center;"><span class="em">도구의 불신</span>이 → <span class="em">사람의 불신</span>으로 전이됩니다.</p>
 </section>
@@ -405,19 +427,19 @@ h2{font-size:clamp(30px,3.5vw,48px);font-weight:800;line-height:1.25;letter-spac
     <p class="lead">솔직한 이야기를 합시다.<br>AI로 생산성을 올려도 보상은 없고,<br>남는 시간에 다른 일이 쌓입니다.</p>
     <p class="body" style="margin-top:16px;">이 상태에서 AI를 잘 쓰는 사람이<br>취할 수 있는 전략은 세 가지입니다.<br>그리고 <strong style="color:var(--accent);">세 가지 모두 팀에 독</strong>입니다.</p>
   </div>
-  <div class="rt vis" style="background:var(--g800);">
+  <div class="rt vis">
     <div style="max-width:360px;text-align:left;">
       <div style="display:flex;flex-direction:column;gap:16px;">
         <div style="padding:18px 20px;background:rgba(255,255,255,.04);border-radius:12px;">
-          <p style="font-size:clamp(16px,1.4vw,19px);font-weight:700;color:var(--white);margin-bottom:4px;">전략 1: 침묵</p>
+          <p style="font-size:clamp(14px,1.2vw,16px);font-weight:700;color:var(--white);margin-bottom:4px;">전략 1: 침묵</p>
           <p style="font-size:clamp(17px,1.6vw,21px);color:var(--g400);line-height:1.6;">3일에 끝내고 1개월인 척.<br>팀에는 불신이 남음.</p>
         </div>
         <div style="padding:18px 20px;background:rgba(255,255,255,.04);border-radius:12px;">
-          <p style="font-size:clamp(16px,1.4vw,19px);font-weight:700;color:var(--white);margin-bottom:4px;">전략 2: 이탈</p>
+          <p style="font-size:clamp(14px,1.2vw,16px);font-weight:700;color:var(--white);margin-bottom:4px;">전략 2: 이탈</p>
           <p style="font-size:clamp(17px,1.6vw,21px);color:var(--g400);line-height:1.6;">잘 쓰는 사람부터 나감.<br>팀에는 AI 못 쓰는 사람만 남음.</p>
         </div>
         <div style="padding:18px 20px;background:rgba(255,255,255,.04);border-radius:12px;">
-          <p style="font-size:clamp(16px,1.4vw,19px);font-weight:700;color:var(--white);margin-bottom:4px;">전략 3: 사일로</p>
+          <p style="font-size:clamp(14px,1.2vw,16px);font-weight:700;color:var(--white);margin-bottom:4px;">전략 3: 사일로</p>
           <p style="font-size:clamp(17px,1.6vw,21px);color:var(--g400);line-height:1.6;">혼자 AI와만 일함.<br>팀은 이름만 팀.</p>
         </div>
       </div>
@@ -426,29 +448,6 @@ h2{font-size:clamp(30px,3.5vw,48px);font-weight:800;line-height:1.25;letter-spac
   </div>
 </section>
 
-<!-- ═══ 12 NEGLECT ENDGAME + TRANSITION (split) ═══ -->
-<section class="slide sp ink" data-n="그러면 뭐가 답이냐. 혼자 다 하면 된다? 보상이 안 따라와요. 개발자가 각광받던 시절에도 보상 상승분은 제한적이었죠. 구조조정하면 된다? 한국에서 근로기준법 24조 보시면 아시겠지만, 'AI가 대신합니다'만으로는 정리해고 요건이 안 돼요. 희망퇴직 열면? 아이러니하게도 머물러줬으면 하는 사람이 나가요. 그리고 품의, 합의, 유관부서 조율 — AI가 빨라져도 이건 안 줄어요. 그래서 아무도 손을 안 대면 어떻게 되느냐. 한쪽은 자리는 있는데 역할이 비어가요. 해고보다 이게 더 무섭습니다. 잘리면 차라리 새 출발이라도 하겠는데, 할 일 없이 앉아 있는 건 다른 차원의 고통이에요. 반대쪽은? 여러분이에요. 지치거나 열심을 멈추거나. 어느 쪽이든 좋은 그림은 아닙니다. 그래서 — 큰 구조를 바꿀 위치는 아닐 수 있지만, 여러분의 행동 반경 안에서 바꿀 수 있는 게 있습니다.">
-  <div class="lt">
-    <div class="tag">아무도 손 안 대면</div>
-    <h2>혼자 다 하는 것도,<br>구조조정도,<br><span class="em">방치도 답이 아닙니다</span></h2>
-    <p class="lead" style="color:var(--g300);margin-top:16px;">그런데 현실적으로 큰 구조를<br>바꿀 수 있는 위치는 아닐 수 있습니다.</p>
-    <p class="point" style="margin-top:20px;">그래도 <span class="em">여러분의 행동 반경 안에서</span><br>바꿀 수 있는 것이 있습니다.</p>
-  </div>
-  <div class="rt vis" style="background:var(--g800);">
-    <div style="max-width:360px;text-align:left;">
-      <div class="vsgrid" style="max-width:360px;gap:16px;margin:0;">
-        <div class="vs-side" style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:20px 18px;">
-          <div class="vs-lbl" style="color:var(--g400);">한쪽</div>
-          <div class="vs-item" style="color:var(--g300);font-size:clamp(17px,1.6vw,21px);">자리는 남아 있는데<br><strong style="color:var(--white);">역할이 비어가는 사람</strong><br><span style="opacity:.6;">— 해고보다 무서운 공포</span></div>
-        </div>
-        <div class="vs-side" style="background:rgba(37,99,235,.08);border:1px solid rgba(37,99,235,.15);border-radius:12px;padding:20px 18px;">
-          <div class="vs-lbl" style="color:var(--accent);">반대쪽</div>
-          <div class="vs-item" style="color:var(--g300);font-size:clamp(17px,1.6vw,21px);">AI 잘 쓰는 몇 사람이<br>여러 명 몫을 떠안다가<br><strong style="color:var(--accent);">지치거나 열심을 멈춤</strong></div>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
 
 <!-- ═══ 12a BEFORE/AFTER TABLE (centered, warm) ═══ -->
 <section class="slide c warm" data-n="말 한마디 바꾸는 거예요. 큰 구조를 바꾸라는 게 아니에요. 왼쪽이 지금 여러분이 하고 있는 거고, 오른쪽이 바꾼 버전이에요. 첫 번째 — 시안 5개를 '짠' 하고 보여주면 동료가 입을 닫아요. 근데 '3개 뽑았는데 어떤 방향이 좋을까?'라고 하면 대화가 시작돼요. 완성품과 선택지의 차이가 이거예요. 두 번째 — 결과만 보여주면 마법이에요. 마법은 배울 수가 없잖아요. '이 프롬프트로 이렇게 나왔는데'라고 과정을 보여주면, 마법이 아니라 배움이 됩니다. 세 번째 — 혼자 끝내고 공유하는 대신, '같이 돌려볼래?'로 바꿔보세요. 느리겠지만, 그 시간이 팀을 만들어요. 네 번째가 제일 강력한데 — 성공 말고 실패를 먼저 꺼내세요. 'AI가 이건 못 하더라' 이 한마디가 동료한테 주는 안전감이 어마어마해요.">
@@ -483,7 +482,7 @@ h2{font-size:clamp(30px,3.5vw,48px);font-weight:800;line-height:1.25;letter-spac
       <div class="ni"><div class="ni-n">3</div><div><div class="ni-t">"AI가 못 하더라" → "나도 그랬어"</div><div class="ni-d">실패를 꺼내면 대화가 살아남 → <strong>심리적 안전 + 대화 회복</strong></div></div></div>
     </div>
   </div>
-  <div class="rt vis" style="background:var(--accent-soft);">
+  <div class="rt vis">
     <div style="max-width:340px;text-align:left;">
       <p style="font-size:clamp(20px,2.2vw,28px);font-weight:800;color:var(--g900);line-height:1.45;">앞에서 본<br>네 가지 손실을</p>
       <p style="margin-top:12px;font-size:clamp(20px,2.2vw,28px);font-weight:800;color:var(--accent);line-height:1.45;">말 한마디 바꾸는 것으로<br>하나씩 되돌리는 겁니다</p>
@@ -498,23 +497,44 @@ h2{font-size:clamp(30px,3.5vw,48px);font-weight:800;line-height:1.25;letter-spac
     <h2>습관이 되려면<br><span class="em">팀의 약속</span>이 필요합니다</h2>
     <p class="lead">거창한 제도가 아닙니다.<br>한 문장짜리 약속 세 개면 충분합니다.<br>이걸 먼저 제안하는 사람이 <strong style="color:var(--g900);">바로 여러분</strong>입니다.</p>
   </div>
-  <div class="rt vis" style="background:#EDE4D8;">
+  <div class="rt vis">
     <div style="max-width:360px;text-align:left;">
-      <p style="font-size:clamp(16px,1.4vw,19px);font-weight:700;letter-spacing:1.5px;color:var(--accent);margin-bottom:16px;">그라운드룰 세 가지</p>
+      <p style="font-size:clamp(14px,1.2vw,16px);font-weight:700;letter-spacing:1.5px;color:var(--accent);margin-bottom:16px;">그라운드룰 세 가지</p>
       <div style="display:flex;flex-direction:column;gap:14px;">
         <div style="padding:18px 20px;background:var(--white);border-radius:12px;">
-          <p style="font-size:clamp(16px,1.4vw,19px);font-weight:700;color:var(--g900);margin-bottom:4px;">"AI 초안에는 내 판단을 한 줄 붙인다"</p>
+          <p style="font-size:clamp(14px,1.2vw,16px);font-weight:700;color:var(--g900);margin-bottom:4px;">"AI 초안에는 내 판단을 한 줄 붙인다"</p>
           <p style="font-size:clamp(17px,1.6vw,21px);color:var(--g500);line-height:1.6;">피드백이 성립하는 구조</p>
         </div>
         <div style="padding:18px 20px;background:var(--white);border-radius:12px;">
-          <p style="font-size:clamp(16px,1.4vw,19px);font-weight:700;color:var(--g900);margin-bottom:4px;">"AI로 끝낸 작업은 동료 검토를 거친다"</p>
+          <p style="font-size:clamp(14px,1.2vw,16px);font-weight:700;color:var(--g900);margin-bottom:4px;">"AI로 끝낸 작업은 동료 검토를 거친다"</p>
           <p style="font-size:clamp(17px,1.6vw,21px);color:var(--g500);line-height:1.6;">대화가 살아나는 구조</p>
         </div>
         <div style="padding:18px 20px;background:var(--white);border-radius:12px;">
-          <p style="font-size:clamp(16px,1.4vw,19px);font-weight:700;color:var(--g900);margin-bottom:4px;">"주간 회의에서 AI 실패 하나씩 공유"</p>
+          <p style="font-size:clamp(14px,1.2vw,16px);font-weight:700;color:var(--g900);margin-bottom:4px;">"주간 회의에서 AI 실패 하나씩 공유"</p>
           <p style="font-size:clamp(17px,1.6vw,21px);color:var(--g500);line-height:1.6;">심리적 안전 + 팀 학습</p>
         </div>
       </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ 18a SK CASE STUDY (split) ═══ -->
+<section class="slide sp" data-n="SK 사례의 노하우를 공유합니다. 이 슬라이드에서 실제 일하는 방식이 어떻게 바뀌었는지 конкрет한 증거를 보여주면 좋습니다.">
+  <div class="lt">
+    <div class="tag">성공 사례</div>
+    <h2>팀 일하는 방식을 바꾼<br><span class="em">SK만의 노하우</span></h2>
+    <div class="scene">
+      <div class="sc-label">구체적 사례 작성용</div>
+      이곳에 SK그룹 내부에서 <strong style="color:var(--g900);">어떻게 팀의 일하는 방식 변화를 이끌었는지</strong> 실제 사례나 규칙을 기입해 주세요.<br><br>
+      <span style="color:var(--g500);">예: 성공보다 '어디서 막혔는지'를 주마다 공유하는 리뷰 세션 도입 이야기 등</span>
+    </div>
+  </div>
+  <div class="rt vis">
+    <div style="max-width:440px;text-align:center;">
+      <div style="width:100%;aspect-ratio:16/10;background:var(--white);border:2px dashed var(--g300);border-radius:var(--radius);display:flex;align-items:center;justify-content:center;color:var(--g500);font-size:clamp(16px,1.4vw,19px);font-weight:600;letter-spacing:1px;margin-bottom:16px;">
+        여기에 관련 이미지/차트 교체
+      </div>
+      <p style="font-size:clamp(15px,1.4vw,18px);color:var(--g500);line-height:1.6;">(SK 내부의 회의 방식 개편 데이터 혹은 팀 워크숍 현장 사진 플레이스홀더)</p>
     </div>
   </div>
 </section>
@@ -546,7 +566,7 @@ h2{font-size:clamp(30px,3.5vw,48px);font-weight:800;line-height:1.25;letter-spac
 <section class="slide c ink" data-n="Q&A.">
   <h1 style="opacity:.95;letter-spacing:-2px;">감사합니다</h1>
   <div style="width:48px;height:3px;background:var(--accent-vivid);border-radius:2px;margin:24px auto 20px;opacity:.5;"></div>
-  <p style="font-size:clamp(15px,1.3vw,18px);opacity:.35;font-weight:500;letter-spacing:1px;">Q&A</p>
+  <p style="font-size:clamp(14px,1.2vw,16px);opacity:.35;font-weight:500;letter-spacing:1px;">Q&A</p>
 </section>
 
 </div>
