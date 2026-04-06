@@ -1,29 +1,1635 @@
-</div>
 
-<div class="progress" id="prog"></div>
-<div class="counter" id="cnt">1 / 21</div>
-<div class="hint">&larr; &rarr; &middot; N 노트</div>
-<div class="notes-panel" id="np"><div class="nlbl">Speaker Notes (N)</div><div id="nc"></div></div>
+    </div>
 
-<script>
-(function(){
-  var sl=document.querySelectorAll('.slide'),tot=sl.length,cur=0,no=false;
-  function go(i){if(i<0||i>=tot)return;sl[cur].classList.remove('active');cur=i;sl[cur].classList.add('active');
-    document.getElementById('prog').style.width=((cur+1)/tot*100)+'%';
-    document.getElementById('cnt').textContent=(cur+1)+' / '+tot;
-    document.getElementById('nc').textContent=sl[cur].dataset.n||'';
-  }
-  go(0);
-  document.addEventListener('keydown',function(e){
-    if(e.key==='ArrowRight'||e.key===' '){e.preventDefault();go(cur+1);}
-    else if(e.key==='ArrowLeft'){e.preventDefault();go(cur-1);}
-    else if(e.key==='n'||e.key==='N'){no=!no;document.getElementById('np').classList.toggle('open',no);}
-    else if(e.key==='Home')go(0);else if(e.key==='End')go(tot-1);
-  });
-  var tx=0;
-  document.addEventListener('touchstart',function(e){tx=e.changedTouches[0].screenX;},{passive:true});
-  document.addEventListener('touchend',function(e){var d=e.changedTouches[0].screenX-tx;if(d<-50)go(cur+1);else if(d>50)go(cur-1);},{passive:true});
-})();
-</script>
+    <div class="nav">
+        <span class="pg"><span id="cur">1</span> / <span id="tot">-</span></span>
+        <button onclick="go(-1)" aria-label="이전">&#8592;</button>
+        <button onclick="go(1)" aria-label="다음">&#8594;</button>
+    </div>
+
+    <script>
+        let slides = document.querySelectorAll('.s');
+        let total = slides.length;
+        let idx = 0;
+        let prevIdx = 0;
+
+        // Initialize Total Count
+        document.getElementById('tot').textContent = total;
+
+        function show(i) {
+            slides[prevIdx].classList.remove('active');
+            slides[i].classList.add('active');
+            prevIdx = i;
+            document.getElementById('cur').textContent = i + 1;
+            document.getElementById('progressBar').style.width = ((i + 1) / total * 100) + '%';
+        }
+
+        function go(d) { idx = Math.max(0, Math.min(total - 1, idx + d)); show(idx); }
+
+        // 네비게이션 핸들러
+        function navHandler(e) {
+            if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); go(1); }
+            if (e.key === 'ArrowLeft') { e.preventDefault(); go(-1); }
+            if (e.key === 'ArrowDown' || e.key === 'PageDown') { e.preventDefault(); go(1); }
+            if (e.key === 'ArrowUp' || e.key === 'PageUp') { e.preventDefault(); go(-1); }
+            if (e.key === 'Home') { e.preventDefault(); idx = 0; show(idx); }
+            if (e.key === 'End') { e.preventDefault(); idx = total - 1; show(idx); }
+        }
+        document.addEventListener('keydown', navHandler);
+
+        // Initialize
+        show(0);
+
+        // ═══════════════════════════════════════════════════════════════════
+        // BDAI Slide Editor — Full-Featured PPT-like Editing System
+        // Module 1: Core Framework  |  Module 2: Text Tools
+        // Module 3: Element Tools   |  Module 4: Slide Management
+        // ═══════════════════════════════════════════════════════════════════
+
+        // ── Module 1: Core Framework ──────────────────────────────────────
+        (function () {
+          'use strict';
+          const Editor = {
+            active: false, selected: null, history: [], future: [],
+            modules: {}, clipboard: null,
+          };
+          Editor.registerModule = function (name, mod) { Editor.modules[name] = mod; };
+          function isEditorUI(el) { return el ? !!el.closest('[data-editor="true"]') : false; }
+          function isEditingText() {
+            var a = document.activeElement;
+            return a && (a.isContentEditable || a.tagName === 'INPUT' || a.tagName === 'TEXTAREA');
+          }
+          Editor.toggle = function () {
+            Editor.active = !Editor.active;
+            if (Editor.active) {
+              toolbar.style.display = 'flex';
+              toggleBtn.innerHTML = '\u2705';
+              toggleBtn.style.background = '#fef3c7';
+              document.removeEventListener('keydown', navHandler);
+              Object.keys(Editor.modules).forEach(function (n) {
+                var m = Editor.modules[n]; if (typeof m.activate === 'function') m.activate();
+              });
+              document.addEventListener('keydown', editorKeyHandler);
+              document.addEventListener('click', editorClickHandler, true);
+            } else {
+              Editor.deselect();
+              toolbar.style.display = 'none';
+              toggleBtn.innerHTML = '\u270F\uFE0F';
+              toggleBtn.style.background = '#fff';
+              document.addEventListener('keydown', navHandler);
+              Object.keys(Editor.modules).forEach(function (n) {
+                var m = Editor.modules[n]; if (typeof m.deactivate === 'function') m.deactivate();
+              });
+              document.removeEventListener('keydown', editorKeyHandler);
+              document.removeEventListener('click', editorClickHandler, true);
+            }
+          };
+          Editor.select = function (el) {
+            if (!el) return;
+            if (Editor.selected && Editor.selected !== el) Editor.deselect();
+            Editor.selected = el;
+            el.style.outline = '2px solid #3b82f6';
+            el.style.outlineOffset = '2px';
+            el.dispatchEvent(new CustomEvent('editor:select', { bubbles: true }));
+          };
+          Editor.deselect = function () {
+            if (Editor.selected) {
+              Editor.selected.style.outline = '';
+              Editor.selected.style.outlineOffset = '';
+              var prev = Editor.selected; Editor.selected = null;
+              prev.dispatchEvent(new CustomEvent('editor:deselect', { bubbles: true }));
+            }
+          };
+          Editor.getActiveSlide = function () { return slides[idx]; };
+          Editor.getScale = function () {
+            var wrap = document.querySelector('.slides-wrap') || document.querySelector('.deck');
+            if (!wrap) return 1;
+            var tf = wrap.style.transform || getComputedStyle(wrap).transform;
+            if (tf && tf !== 'none') {
+              var sm = tf.match(/scale\(([^)]+)\)/); if (sm) return parseFloat(sm[1]);
+              var mm = tf.match(/matrix\(([^,]+)/); if (mm) return parseFloat(mm[1]);
+            }
+            var rect = wrap.getBoundingClientRect();
+            return rect.width > 0 ? rect.width / 1280 : 1;
+          };
+          Editor.pushHistory = function (desc) {
+            var slide = Editor.getActiveSlide(); if (!slide) return;
+            Editor.history.push({ slideIndex: idx, html: slide.innerHTML, desc: desc || '' });
+            if (Editor.history.length > 50) Editor.history.shift();
+            Editor.future = [];
+          };
+          Editor.undo = function () {
+            if (!Editor.history.length) { Editor.notify('Nothing to undo'); return; }
+            var e = Editor.history.pop();
+            Editor.future.push({ slideIndex: e.slideIndex, html: slides[e.slideIndex].innerHTML, desc: e.desc });
+            slides[e.slideIndex].innerHTML = e.html; Editor.deselect();
+            Editor.notify('Undo: ' + e.desc);
+          };
+          Editor.redo = function () {
+            if (!Editor.future.length) { Editor.notify('Nothing to redo'); return; }
+            var e = Editor.future.pop();
+            Editor.history.push({ slideIndex: e.slideIndex, html: slides[e.slideIndex].innerHTML, desc: e.desc });
+            slides[e.slideIndex].innerHTML = e.html; Editor.deselect();
+            Editor.notify('Redo: ' + e.desc);
+          };
+          Editor.saveToSource = function () {
+            try {
+              if (location.protocol === 'file:') { Editor.notify('Save requires dev server. Run: npm run serve', 'error'); return; }
+              var slide = Editor.getActiveSlide(); if (!slide) { Editor.notify('No active slide', 'error'); return; }
+              var idx = Array.prototype.indexOf.call(slides, slide);
+              if (idx < 0) { Editor.notify('Cannot find slide index', 'error'); return; }
+              Editor.notify('Saving...', 'info');
+              var clone = slide.cloneNode(true);
+              clone.querySelectorAll('[data-editor]').forEach(function (el) { el.remove(); });
+              clone.querySelectorAll('[contenteditable]').forEach(function (el) {
+                el.removeAttribute('contenteditable');
+                el.style.outline = ''; el.style.outlineOffset = ''; el.style.cursor = '';
+              });
+              // Clean all editor artifacts from every element
+              clone.querySelectorAll('*').forEach(function (el) {
+                if (el.style.cursor === 'move') el.style.cursor = '';
+                if (el.style.outline && el.style.outline.includes('#3b82f6')) { el.style.outline = ''; el.style.outlineOffset = ''; }
+                if (el.style.outline && el.style.outline.includes('#f59e0b')) { el.style.outline = ''; el.style.outlineOffset = ''; }
+              });
+              clone.classList.remove('active');
+              clone.style.outline = ''; clone.style.outlineOffset = '';
+              var html = '        ' + clone.outerHTML.replace(/\n/g, '\n        ') + '\n';
+              fetch('/api/save-slide', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ slideIndex: idx, html: html })
+              }).then(function (r) { return r.json(); })
+                .then(function (d) {
+                  if (d.ok) Editor.notify('Saved: ' + d.file, 'success');
+                  else Editor.notify('Save failed: ' + d.error, 'error');
+                }).catch(function () { Editor.notify('Save failed — run: npm run serve', 'error'); });
+            } catch (err) { Editor.notify('Save error: ' + err.message, 'error'); }
+          };
+          Editor.exportHTML = function () {
+            var was = Editor.selected; Editor.deselect();
+            var clone = document.documentElement.cloneNode(true);
+            // Remove all editor UI elements
+            clone.querySelectorAll('[data-editor="true"]').forEach(function (el) { el.remove(); });
+            // Remove editor toggle button
+            var tb = clone.querySelector('#editorToggle'); if (tb) tb.remove();
+            var tbr = clone.querySelector('#editorToolbar'); if (tbr) tbr.remove();
+            // Clean editor artifacts from content elements
+            clone.querySelectorAll('[contenteditable]').forEach(function (el) {
+              el.removeAttribute('contenteditable');
+            });
+            clone.querySelectorAll('[style]').forEach(function (el) {
+              el.style.removeProperty('cursor');
+              if (el.style.outline && el.style.outline.includes('#3b82f6')) { el.style.outline = ''; el.style.outlineOffset = ''; }
+            });
+            var html = '<!DOCTYPE html>\n' + clone.outerHTML;
+            var blob = new Blob([html], { type: 'text/html' });
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a'); a.href = url; a.download = 'lecture-edited.html'; a.click();
+            URL.revokeObjectURL(url);
+            if (was) Editor.select(was);
+            Editor.notify('Exported clean HTML');
+          };
+          Editor.notify = function (msg, type) {
+            var bg = '#1e293b'; var icon = '';
+            if (type === 'success' || /Saved|Build complete|ok/i.test(msg)) { bg = '#059669'; icon = '\u2705 '; }
+            else if (type === 'error' || /fail|error/i.test(msg)) { bg = '#dc2626'; icon = '\u274c '; }
+            else if (type === 'info' || /Building|Saving/i.test(msg)) { bg = '#2563eb'; icon = '\u23f3 '; }
+            var t = document.createElement('div');
+            t.setAttribute('data-editor', 'true'); t.textContent = icon + msg;
+            Object.assign(t.style, {
+              position:'fixed', bottom:'32px', left:'50%', transform:'translateX(-50%) scale(0.95)',
+              background:bg, color:'#fff', padding:'12px 28px', borderRadius:'10px',
+              fontSize:'1rem', fontWeight:'600', zIndex:'10001',
+              boxShadow:'0 6px 24px rgba(0,0,0,0.3)', opacity:'0',
+              transition:'opacity 0.25s ease, transform 0.25s ease', pointerEvents:'none', fontFamily:'var(--f-sans)'
+            });
+            document.body.appendChild(t);
+            requestAnimationFrame(function () { t.style.opacity = '1'; t.style.transform = 'translateX(-50%) scale(1)'; });
+            var duration = /fail|error/i.test(msg) ? 4000 : 2500;
+            setTimeout(function () { t.style.opacity = '0'; t.style.transform = 'translateX(-50%) scale(0.95)'; setTimeout(function () { t.remove(); }, 250); }, duration);
+          };
+
+          // Remove old edit UI
+          var oldToggle = document.getElementById('editToggle'); if (oldToggle) oldToggle.remove();
+          var oldBar = document.getElementById('editBar'); if (oldBar) oldBar.remove();
+
+          // Toggle button
+          var toggleBtn = document.createElement('button');
+          toggleBtn.id = 'editorToggle';
+          toggleBtn.setAttribute('data-editor', 'true');
+          toggleBtn.innerHTML = '\u270F\uFE0F';
+          toggleBtn.title = 'Toggle editor (edit mode)';
+          var isServeMode = location.protocol === 'http:' && location.hostname === 'localhost';
+          Object.assign(toggleBtn.style, {
+            position:'fixed', top:'24px', right:'24px', zIndex:'9999',
+            width:'48px', height:'48px', borderRadius:'50%', border:'none',
+            background:'#fff', boxShadow:'0 4px 16px rgba(0,0,0,0.15)',
+            fontSize:'1.3rem', cursor:'pointer', transition:'all 0.2s',
+            display: isServeMode ? 'flex' : 'none', alignItems:'center', justifyContent:'center'
+          });
+          toggleBtn.addEventListener('click', function () { Editor.toggle(); });
+          document.body.appendChild(toggleBtn);
+
+          // Toolbar
+          var toolbar = document.createElement('div');
+          toolbar.id = 'editorToolbar';
+          toolbar.setAttribute('data-editor', 'true');
+          Object.assign(toolbar.style, {
+            position:'fixed', top:'0', left:'0', right:'0', height:'48px', zIndex:'9998',
+            background:'#1e293b', boxShadow:'0 2px 12px rgba(0,0,0,0.3)',
+            display:'none', alignItems:'center', justifyContent:'space-between',
+            padding:'0 16px', fontFamily:'var(--f-sans)'
+          });
+          var toolbarBtnCSS = {
+            minWidth:'36px', height:'36px', background:'transparent', border:'none',
+            color:'#fff', borderRadius:'6px', fontSize:'1rem', cursor:'pointer',
+            display:'flex', alignItems:'center', justifyContent:'center',
+            padding:'0 8px', transition:'background 0.15s'
+          };
+          function makeToolbarBtn(label, title, onClick) {
+            var btn = document.createElement('button');
+            btn.setAttribute('data-editor', 'true'); btn.innerHTML = label; btn.title = title;
+            Object.assign(btn.style, toolbarBtnCSS);
+            btn.addEventListener('mouseenter', function () { btn.style.background = 'rgba(255,255,255,0.1)'; });
+            btn.addEventListener('mouseleave', function () { btn.style.background = 'transparent'; });
+            btn.addEventListener('click', onClick);
+            return btn;
+          }
+          function makeSeparator() {
+            var sep = document.createElement('div');
+            sep.setAttribute('data-editor', 'true');
+            Object.assign(sep.style, { width:'1px', height:'24px', background:'rgba(255,255,255,0.15)', margin:'0 8px' });
+            return sep;
+          }
+          var toolbarLeft = document.createElement('div');
+          toolbarLeft.id = 'toolbarLeft'; toolbarLeft.setAttribute('data-editor', 'true');
+          Object.assign(toolbarLeft.style, { display:'flex', alignItems:'center', gap:'4px', flex:'1' });
+          var toolbarCenter = document.createElement('div');
+          toolbarCenter.id = 'toolbarCenter'; toolbarCenter.setAttribute('data-editor', 'true');
+          Object.assign(toolbarCenter.style, { display:'flex', alignItems:'center', gap:'4px', flex:'1', justifyContent:'center' });
+          var toolbarRight = document.createElement('div');
+          toolbarRight.id = 'toolbarRight'; toolbarRight.setAttribute('data-editor', 'true');
+          Object.assign(toolbarRight.style, { display:'flex', alignItems:'center', gap:'4px', flex:'1', justifyContent:'flex-end' });
+          toolbarRight.appendChild(makeToolbarBtn('\u21A9', 'Undo (Ctrl+Z)', function () { Editor.undo(); }));
+          toolbarRight.appendChild(makeToolbarBtn('\u21AA', 'Redo (Ctrl+Y)', function () { Editor.redo(); }));
+          toolbarRight.appendChild(makeToolbarBtn('\uD83D\uDCBE', 'Save to source (Ctrl+S)', function () { Editor.saveToSource(); }));
+          toolbarRight.appendChild(makeToolbarBtn('\uD83D\uDD28', 'Build (npm run build)', function () {
+            if (location.protocol === 'file:') { Editor.notify('Build requires dev server. Run: npm run serve', 'error'); return; }
+            Editor.notify('Building...', 'info');
+            fetch('/api/build', { method: 'POST' })
+              .then(function (r) { return r.json(); })
+              .then(function (d) {
+                if (d.ok) { Editor.notify('Build complete! Reloading...', 'success'); setTimeout(function () { location.reload(); }, 1000); }
+                else { Editor.notify('Build failed: ' + d.error, 'error'); }
+              })
+              .catch(function () { Editor.notify('Build failed — run: npm run serve', 'error'); });
+          }));
+          toolbar.appendChild(toolbarLeft);
+          toolbar.appendChild(makeSeparator());
+          toolbar.appendChild(toolbarCenter);
+          toolbar.appendChild(makeSeparator());
+          toolbar.appendChild(toolbarRight);
+          document.body.appendChild(toolbar);
+
+          // Keyboard shortcuts
+          function editorKeyHandler(e) {
+            var ctrl = e.ctrlKey || e.metaKey;
+            if (ctrl && e.key === 'z' && !e.shiftKey) { e.preventDefault(); Editor.undo(); return; }
+            if (ctrl && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) { e.preventDefault(); Editor.redo(); return; }
+            if (ctrl && e.key === 's') { e.preventDefault(); Editor.saveToSource(); return; }
+            if (ctrl && e.key === 'c' && !isEditingText() && Editor.selected) {
+              e.preventDefault();
+              Editor.clipboard = { type: 'element', html: Editor.selected.outerHTML, tag: Editor.selected.tagName };
+              Editor.notify('Copied element');
+              return;
+            }
+            if (ctrl && e.key === 'v' && !isEditingText() && Editor.clipboard && Editor.clipboard.type === 'element') {
+              e.preventDefault();
+              var slide = Editor.getActiveSlide(); if (!slide) return;
+              Editor.pushHistory('Paste element');
+              var temp = document.createElement('div'); temp.innerHTML = Editor.clipboard.html;
+              var pasted = temp.firstElementChild;
+              if (pasted) {
+                // Offset pasted element slightly so it's visible
+                var curLeft = parseFloat(pasted.style.left) || 0;
+                var curTop = parseFloat(pasted.style.top) || 0;
+                pasted.style.left = (curLeft + 10) + 'px';
+                pasted.style.top = (curTop + 10) + 'px';
+                slide.appendChild(pasted);
+                Editor.select(pasted);
+                Editor.notify('Pasted element');
+              }
+              return;
+            }
+            if (ctrl && e.key === 'd' && !isEditingText() && Editor.selected) {
+              e.preventDefault();
+              var slide = Editor.getActiveSlide(); if (!slide) return;
+              Editor.pushHistory('Duplicate element');
+              var dup = Editor.selected.cloneNode(true);
+              var dLeft = parseFloat(dup.style.left) || 0;
+              var dTop = parseFloat(dup.style.top) || 0;
+              dup.style.left = (dLeft + 15) + 'px';
+              dup.style.top = (dTop + 15) + 'px';
+              slide.appendChild(dup);
+              Editor.select(dup);
+              Editor.notify('Duplicated element');
+              return;
+            }
+            if ((e.key === 'Delete' || e.key === 'Backspace') && !isEditingText() && Editor.selected) {
+              e.preventDefault(); Editor.pushHistory('Delete element');
+              Editor.selected.remove(); Editor.selected = null;
+              Editor.notify('Element deleted'); return;
+            }
+            if (e.key === 'Escape') {
+              if (Editor.selected) {
+                var parent = Editor.selected.parentElement;
+                var activeSlide = Editor.getActiveSlide();
+                if (parent && parent !== activeSlide && !parent.classList.contains('s')) {
+                  Editor.select(parent);
+                } else {
+                  Editor.deselect();
+                }
+              } else { Editor.toggle(); }
+              return;
+            }
+          }
+          // Click handler
+          function editorClickHandler(e) {
+            var target = e.target;
+            if (isEditorUI(target)) return;
+            if (target === toggleBtn || toggleBtn.contains(target)) return;
+            var activeSlide = Editor.getActiveSlide(); if (!activeSlide) return;
+            if (activeSlide.contains(target)) {
+              if (target === activeSlide) { Editor.deselect(); return; }
+              if (target.isContentEditable) return;
+              // 인라인 태그면 부모 블록 요소까지 올라감
+              var inlineTags = ['SPAN','STRONG','EM','B','I','U','A','SMALL','SUB','SUP','BR'];
+              var el = target;
+              while (el.parentElement && el.parentElement !== activeSlide) {
+                if (!inlineTags.includes(el.tagName)) break;
+                el = el.parentElement;
+              }
+              Editor.select(el);
+            } else { Editor.deselect(); }
+          }
+          // Init modules
+          function initAllModules() {
+            Object.keys(Editor.modules).forEach(function (n) {
+              var m = Editor.modules[n]; if (typeof m.init === 'function') m.init();
+            });
+          }
+          if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initAllModules);
+          } else { setTimeout(initAllModules, 0); }
+          window.Editor = Editor;
+        })();
+
+        // ── Module 2: Text Editing & Style Tools ──────────────────────────
+        (function () {
+          'use strict';
+          var PALETTE = ['#0F172A','#1E293B','#475569','#DC2626','#D97706','#059669','#2563EB','#7C3AED','#FFFFFF','#000000'];
+          var PASTE_PROPS = ['color','fontSize','fontWeight','fontFamily','backgroundColor','padding','borderRadius','border'];
+          var BTN_BASE = {
+            minWidth:'36px', height:'36px', border:'none', background:'transparent', color:'#fff',
+            borderRadius:'6px', cursor:'pointer', fontSize:'0.85rem', display:'inline-flex',
+            alignItems:'center', justifyContent:'center', flexShrink:'0', transition:'background 0.15s', padding:'0 6px'
+          };
+          var painterActive = false, painterClickHandler = null, buttons = [], separators = [];
+          var openDropdown = null, sizeLabel = null, colorIndicator = null, bgIndicator = null;
+          var painterBtn = null, editableCleanups = [], formatBtns = null;
+
+          function makeBtn(label, title, extra) {
+            var b = document.createElement('button');
+            b.innerHTML = label; b.title = title; b.setAttribute('data-editor', 'true');
+            Object.assign(b.style, BTN_BASE, extra || {});
+            b.addEventListener('mouseenter', function () { if (!b.classList.contains('ed-active')) b.style.background = 'rgba(255,255,255,0.08)'; });
+            b.addEventListener('mouseleave', function () { if (!b.classList.contains('ed-active')) b.style.background = 'transparent'; });
+            buttons.push(b); return b;
+          }
+          function makeSep() {
+            var s = document.createElement('span'); s.setAttribute('data-editor', 'true');
+            Object.assign(s.style, { display:'inline-block', width:'1px', height:'24px', background:'rgba(255,255,255,0.18)', margin:'0 6px', flexShrink:'0' });
+            separators.push(s); return s;
+          }
+          function setActive(btn, on) {
+            if (on) { btn.classList.add('ed-active'); btn.style.background = 'rgba(255,255,255,0.15)'; }
+            else { btn.classList.remove('ed-active'); btn.style.background = 'transparent'; }
+          }
+          function closeDropdowns() { if (openDropdown) { openDropdown.remove(); openDropdown = null; } }
+          function buildColorGrid(onPick, includeTransparent) {
+            var wrap = document.createElement('div'); wrap.setAttribute('data-editor', 'true');
+            Object.assign(wrap.style, {
+              position:'absolute', top:'100%', left:'0', marginTop:'6px',
+              background:'#fff', borderRadius:'8px', boxShadow:'0 4px 20px rgba(0,0,0,0.2)',
+              padding:'8px', display:'grid', gridTemplateColumns:'repeat(5, 1fr)',
+              gap:'6px', zIndex:'10000', minWidth:'156px'
+            });
+            PALETTE.forEach(function (c) {
+              var sw = document.createElement('div'); sw.setAttribute('data-editor', 'true');
+              Object.assign(sw.style, {
+                width:'24px', height:'24px', borderRadius:'50%', cursor:'pointer',
+                background: c, border: c === '#FFFFFF' ? '1px solid #d1d5db' : 'none', transition:'transform 0.1s'
+              });
+              sw.title = c;
+              sw.addEventListener('mouseenter', function () { sw.style.transform = 'scale(1.2)'; });
+              sw.addEventListener('mouseleave', function () { sw.style.transform = 'scale(1)'; });
+              sw.addEventListener('click', function (e) { e.stopPropagation(); onPick(c); closeDropdowns(); });
+              wrap.appendChild(sw);
+            });
+            if (includeTransparent) {
+              var tr = document.createElement('div'); tr.setAttribute('data-editor', 'true');
+              Object.assign(tr.style, {
+                width:'24px', height:'24px', borderRadius:'50%', cursor:'pointer',
+                border:'1px solid #d1d5db', position:'relative', overflow:'hidden',
+                background:'repeating-conic-gradient(#d1d5db 0% 25%, #fff 0% 50%) 50%/8px 8px', transition:'transform 0.1s'
+              });
+              var xm = document.createElement('span');
+              Object.assign(xm.style, { position:'absolute', inset:'0', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'14px', fontWeight:'700', color:'#DC2626', lineHeight:'1' });
+              xm.textContent = '\u00D7'; tr.appendChild(xm);
+              tr.title = 'Transparent';
+              tr.addEventListener('mouseenter', function () { tr.style.transform = 'scale(1.2)'; });
+              tr.addEventListener('mouseleave', function () { tr.style.transform = 'scale(1)'; });
+              tr.addEventListener('click', function (e) { e.stopPropagation(); onPick('transparent'); closeDropdowns(); });
+              wrap.appendChild(tr);
+            }
+            return wrap;
+          }
+          function parsePx(str) { var m = String(str).match(/([\d.]+)px/); return m ? parseFloat(m[1]) : null; }
+          function updateSizeLabel() {
+            if (!sizeLabel) return;
+            var el = window.Editor && Editor.selected;
+            if (!el) { sizeLabel.textContent = '--'; return; }
+            var fs = el.style.fontSize || window.getComputedStyle(el).fontSize;
+            var px = parsePx(fs); sizeLabel.textContent = px !== null ? Math.round(px) + 'px' : '--';
+          }
+          function updateFormatButtons() {
+            if (!formatBtns) return;
+            var cmds = { bold: formatBtns.bold, italic: formatBtns.italic, underline: formatBtns.underline };
+            Object.keys(cmds).forEach(function (cmd) {
+              try { setActive(cmds[cmd], document.queryCommandState(cmd)); } catch (_) { setActive(cmds[cmd], false); }
+            });
+          }
+          function init() {
+            var toolbar = document.getElementById('toolbarLeft'); if (!toolbar) return;
+            var btnBold = makeBtn('<b>B</b>', 'Bold (Ctrl+B)', { fontWeight:'bold' });
+            var btnItalic = makeBtn('<i>I</i>', 'Italic (Ctrl+I)', { fontStyle:'italic' });
+            var btnUnderline = makeBtn('<u>U</u>', 'Underline (Ctrl+U)', { textDecoration:'underline' });
+            formatBtns = { bold: btnBold, italic: btnItalic, underline: btnUnderline };
+            btnBold.addEventListener('click', function () { document.execCommand('bold'); updateFormatButtons(); });
+            btnItalic.addEventListener('click', function () { document.execCommand('italic'); updateFormatButtons(); });
+            btnUnderline.addEventListener('click', function () { document.execCommand('underline'); updateFormatButtons(); });
+            toolbar.appendChild(btnBold); toolbar.appendChild(btnItalic); toolbar.appendChild(btnUnderline);
+            toolbar.appendChild(makeSep());
+            // Text alignment
+            var btnAlignL = makeBtn('\u2261', 'Align left');
+            var btnAlignC = makeBtn('\u2263', 'Align center');
+            var btnAlignR = makeBtn('\u2262', 'Align right');
+            function applyAlign(align) {
+              if (Editor.selected) { Editor.pushHistory('Align text'); Editor.selected.style.textAlign = align; Editor.notify('Aligned ' + align); }
+              else { document.execCommand('justify' + align.charAt(0).toUpperCase() + align.slice(1)); }
+            }
+            btnAlignL.addEventListener('click', function () { applyAlign('left'); });
+            btnAlignC.addEventListener('click', function () { applyAlign('center'); });
+            btnAlignR.addEventListener('click', function () { applyAlign('right'); });
+            toolbar.appendChild(btnAlignL); toolbar.appendChild(btnAlignC); toolbar.appendChild(btnAlignR);
+            toolbar.appendChild(makeSep());
+            // Font family selector
+            var fontSelect = document.createElement('select');
+            fontSelect.setAttribute('data-editor', 'true'); fontSelect.title = 'Font family';
+            Object.assign(fontSelect.style, {
+              height: '32px', background: '#374151', color: '#fff', border: '1px solid #4b5563',
+              borderRadius: '4px', fontSize: '0.75rem', padding: '0 4px', cursor: 'pointer',
+              maxWidth: '110px', fontFamily: 'var(--f-sans)'
+            });
+            var FONTS = [
+              { label: 'Pretendard', value: "'Pretendard Variable', sans-serif" },
+              { label: 'Noto Serif', value: "'Noto Serif KR', Georgia, serif" },
+              { label: 'Arial', value: 'Arial, sans-serif' },
+              { label: 'Georgia', value: 'Georgia, serif' },
+              { label: 'Courier', value: "'Courier New', monospace" },
+              { label: 'System UI', value: 'system-ui, sans-serif' }
+            ];
+            FONTS.forEach(function (f) {
+              var opt = document.createElement('option'); opt.value = f.value; opt.textContent = f.label;
+              opt.style.fontFamily = f.value; fontSelect.appendChild(opt);
+            });
+            fontSelect.addEventListener('change', function () {
+              var val = fontSelect.value;
+              if (applyToSelection('fontFamily', val)) return;
+              var el = Editor.selected; if (!el) return;
+              Editor.pushHistory('Change font'); applyToTree(el, 'fontFamily', val);
+              Editor.notify('Font: ' + fontSelect.options[fontSelect.selectedIndex].text);
+            });
+            toolbar.appendChild(fontSelect);
+            toolbar.appendChild(makeSep());
+            // Font size
+            var btnSizeDown = makeBtn('A\u2193', 'Decrease font size');
+            sizeLabel = document.createElement('span'); sizeLabel.setAttribute('data-editor', 'true');
+            Object.assign(sizeLabel.style, { color:'#fff', fontSize:'0.75rem', minWidth:'36px', textAlign:'center', display:'inline-flex', alignItems:'center', justifyContent:'center', opacity:'0.8' });
+            sizeLabel.textContent = '--';
+            var btnSizeUp = makeBtn('A\u2191', 'Increase font size');
+            function applyToTree(el, prop, val) {
+              el.style[prop] = val;
+              el.querySelectorAll('*').forEach(function(ch) {
+                if (ch.hasAttribute('data-editor') || ch.tagName === 'SVG' || ch.closest('svg')) return;
+                ch.style[prop] = val;
+              });
+            }
+            function applyToSelection(prop, val) {
+              var sel = window.getSelection();
+              if (sel && sel.rangeCount > 0 && !sel.isCollapsed) {
+                var range = sel.getRangeAt(0);
+                var activeSlide = Editor.getActiveSlide();
+                if (activeSlide && activeSlide.contains(range.commonAncestorContainer)) {
+                  Editor.pushHistory('Style selection');
+                  var span = document.createElement('span');
+                  span.style[prop] = val;
+                  try { range.surroundContents(span); } catch (e) {
+                    var frag = range.extractContents();
+                    span.appendChild(frag);
+                    range.insertNode(span);
+                  }
+                  sel.removeAllRanges();
+                  return true;
+                }
+              }
+              return false;
+            }
+            function changeSize(delta) {
+              if (window.getSelection && !window.getSelection().isCollapsed) {
+                var sel = window.getSelection();
+                var range = sel.getRangeAt(0);
+                var parent = range.commonAncestorContainer;
+                if (parent.nodeType === 3) parent = parent.parentElement;
+                var px = parsePx(window.getComputedStyle(parent).fontSize) || 16;
+                var newSize = Math.max(8, px + delta) + 'px';
+                if (applyToSelection('fontSize', newSize)) { updateSizeLabel(); return; }
+              }
+              var el = Editor.selected; if (!el) return;
+              Editor.pushHistory('Change font size');
+              var px = parsePx(window.getComputedStyle(el).fontSize) || 16;
+              var newSize = Math.max(8, px + delta) + 'px';
+              applyToTree(el, 'fontSize', newSize); updateSizeLabel();
+            }
+            btnSizeDown.addEventListener('click', function () { changeSize(-2); });
+            btnSizeUp.addEventListener('click', function () { changeSize(2); });
+            toolbar.appendChild(btnSizeDown); toolbar.appendChild(sizeLabel); toolbar.appendChild(btnSizeUp);
+            toolbar.appendChild(makeSep());
+            // Text color
+            var btnColor = makeBtn('A', 'Text color');
+            colorIndicator = document.createElement('span'); colorIndicator.setAttribute('data-editor', 'true');
+            Object.assign(colorIndicator.style, { position:'absolute', bottom:'4px', left:'50%', transform:'translateX(-50%)', width:'16px', height:'3px', borderRadius:'2px', background:'#2563EB' });
+            btnColor.style.position = 'relative'; btnColor.appendChild(colorIndicator);
+            btnColor.addEventListener('click', function (e) {
+              e.stopPropagation(); closeDropdowns();
+              var grid = buildColorGrid(function (c) {
+                if (applyToSelection('color', c)) { colorIndicator.style.background = c; return; }
+                var el = Editor.selected; if (!el) return;
+                Editor.pushHistory('Change text color'); applyToTree(el, 'color', c);
+                colorIndicator.style.background = c;
+              }, false);
+              btnColor.appendChild(grid); openDropdown = grid;
+            });
+            toolbar.appendChild(btnColor);
+            // Background color
+            var btnBg = makeBtn('', 'Background color');
+            bgIndicator = document.createElement('span'); bgIndicator.setAttribute('data-editor', 'true');
+            Object.assign(bgIndicator.style, { width:'16px', height:'16px', borderRadius:'3px', background:'#2563EB', border:'1px solid rgba(255,255,255,0.3)', display:'inline-block' });
+            btnBg.appendChild(bgIndicator);
+            btnBg.addEventListener('click', function (e) {
+              e.stopPropagation(); closeDropdowns();
+              var grid = buildColorGrid(function (c) {
+                var el = Editor.selected; if (!el) return;
+                Editor.pushHistory('Change background color');
+                el.style.backgroundColor = c === 'transparent' ? '' : c;
+                bgIndicator.style.background = c === 'transparent' ? 'repeating-conic-gradient(#d1d5db 0% 25%, #fff 0% 50%) 50%/6px 6px' : c;
+              }, true);
+              btnBg.style.position = 'relative'; btnBg.appendChild(grid); openDropdown = grid;
+            });
+            toolbar.appendChild(btnBg);
+            toolbar.appendChild(makeSep());
+            // Format painter
+            painterBtn = makeBtn('\uD83D\uDD8C\uFE0F', 'Format Painter');
+            painterBtn.addEventListener('click', function () {
+              if (painterActive) { deactivatePainter(); return; }
+              var el = Editor.selected; if (!el) { Editor.notify('Select an element first'); return; }
+              var cs = window.getComputedStyle(el); Editor.clipboard = {};
+              PASTE_PROPS.forEach(function (p) { Editor.clipboard[p] = cs[p]; });
+              painterActive = true; setActive(painterBtn, true);
+              document.body.style.cursor = 'crosshair';
+              Editor.notify('Click target element to paste styles');
+              painterClickHandler = function (ev) {
+                var t = ev.target;
+                if (!t || t.closest('#editorToolbar') || t.hasAttribute('data-editor')) return;
+                ev.preventDefault(); ev.stopPropagation();
+                Editor.pushHistory('Paste format');
+                PASTE_PROPS.forEach(function (p) { t.style[p] = Editor.clipboard[p]; });
+                deactivatePainter();
+              };
+              document.addEventListener('click', painterClickHandler, true);
+            });
+            toolbar.appendChild(painterBtn);
+            toolbar.appendChild(makeSep());
+            // Add text box
+            var btnAddText = makeBtn('T+', 'Add text box');
+            btnAddText.addEventListener('click', function () {
+              var slide = Editor.getActiveSlide(); if (!slide) return;
+              Editor.pushHistory('Add text box');
+              var box = document.createElement('div'); box.contentEditable = 'true'; box.textContent = 'Text';
+              Object.assign(box.style, {
+                position:'relative', padding:'12px', fontSize:'1rem', minWidth:'100px', minHeight:'30px',
+                border:'1px dashed #94a3b8', cursor:'text', margin:'0 auto', width:'fit-content', outline:'none'
+              });
+              slide.appendChild(box);
+              if (Editor.selected) Editor.selected.style.outline = '';
+              Editor.selected = box; box.style.outline = '2px solid #2563EB'; box.focus();
+              Editor.notify('Text box added');
+            });
+            toolbar.appendChild(btnAddText);
+            // Delete element
+            var btnDelete = makeBtn('\uD83D\uDDD1\uFE0F', 'Delete element');
+            btnDelete.addEventListener('click', function () {
+              var el = Editor.selected; if (!el) { Editor.notify('Select an element first'); return; }
+              Editor.pushHistory('Delete element'); el.remove(); Editor.deselect();
+              Editor.notify('Element deleted');
+            });
+            toolbar.appendChild(btnDelete);
+            // Keyboard shortcuts
+            document.addEventListener('keydown', function (e) {
+              if (!Editor.active) return; var mod = e.ctrlKey || e.metaKey;
+              if (mod && e.key === 'b') { e.preventDefault(); document.execCommand('bold'); updateFormatButtons(); }
+              if (mod && e.key === 'i') { e.preventDefault(); document.execCommand('italic'); updateFormatButtons(); }
+              if (mod && e.key === 'u') { e.preventDefault(); document.execCommand('underline'); updateFormatButtons(); }
+            });
+            document.addEventListener('click', function (e) { if (openDropdown && !openDropdown.contains(e.target)) closeDropdowns(); });
+            document.addEventListener('selectionchange', function () { if (Editor.active) { updateFormatButtons(); updateSizeLabel(); } });
+          }
+          function deactivatePainter() {
+            painterActive = false; if (painterBtn) setActive(painterBtn, false);
+            document.body.style.cursor = '';
+            if (painterClickHandler) { document.removeEventListener('click', painterClickHandler, true); painterClickHandler = null; }
+          }
+          function hasDirectText(el) {
+            for (var i = 0; i < el.childNodes.length; i++) {
+              if (el.childNodes[i].nodeType === 3 && el.childNodes[i].textContent.trim().length > 0) return true;
+            }
+            return false;
+          }
+          function activate() {
+            var slide = Editor.getActiveSlide(); if (!slide) return;
+            slide.querySelectorAll('*').forEach(function (el) {
+              if (el.closest('#editorToolbar') || el.hasAttribute('data-editor')) return;
+              if (el.tagName === 'SVG' || el.closest('svg')) return;
+              if (!hasDirectText(el)) return;
+              var handler = function () {
+                el.contentEditable = 'true'; el.style.outline = '1px dashed #f59e0b';
+                el.style.outlineOffset = '2px'; el.style.cursor = 'text';
+              };
+              el.addEventListener('click', handler);
+              editableCleanups.push({ el: el, handler: handler });
+            });
+            updateSizeLabel(); updateFormatButtons();
+          }
+          function deactivate() {
+            editableCleanups.forEach(function (item) {
+              item.el.removeEventListener('click', item.handler);
+              item.el.contentEditable = 'false'; item.el.removeAttribute('contenteditable');
+              item.el.style.outline = ''; item.el.style.outlineOffset = ''; item.el.style.cursor = '';
+            });
+            editableCleanups = [];
+            document.querySelectorAll('[contenteditable="true"]').forEach(function (el) {
+              if (el.hasAttribute('data-editor')) return;
+              el.contentEditable = 'false'; el.removeAttribute('contenteditable');
+              el.style.outline = ''; el.style.outlineOffset = ''; el.style.cursor = '';
+            });
+            deactivatePainter(); closeDropdowns();
+          }
+          Editor.registerModule('text', { init: init, activate: activate, deactivate: deactivate });
+        })();
+
+        // ── Module 3: Element Manipulation Tools ──────────────────────────
+        (function () {
+          'use strict';
+          var guidesEnabled = true, handleEls = [], guideLines = [], gapPanel = null;
+          var replaceBtn = null, toolbarBtns = [], dragState = null, resizeState = null, fileInput = null;
+          function px(v) { return Math.round(v) + 'px'; }
+          function getSlideCoords(e) {
+            var scale = Editor.getScale(); var slide = Editor.getActiveSlide(); if (!slide) return null;
+            var rect = slide.getBoundingClientRect();
+            return { x: (e.clientX - rect.left) / scale, y: (e.clientY - rect.top) / scale, rect: rect, scale: scale };
+          }
+          function isEditorUI(el) { return el ? (el.hasAttribute('data-editor') || (el.closest && !!el.closest('[data-editor]'))) : false; }
+          function elRect(el) {
+            var slide = Editor.getActiveSlide(); if (!slide) return { left:0, top:0, width:0, height:0 };
+            var scale = Editor.getScale(); var sRect = slide.getBoundingClientRect(); var eRect = el.getBoundingClientRect();
+            return { left:(eRect.left-sRect.left)/scale, top:(eRect.top-sRect.top)/scale, width:eRect.width/scale, height:eRect.height/scale };
+          }
+          // Drag & Drop
+          function onDragMouseDown(e) {
+            if (!Editor.active || !Editor.selected) return;
+            if (isEditorUI(e.target)) return;
+            var active = document.activeElement; if (active && active.isContentEditable) return;
+            var sel = Editor.selected;
+            if (!sel.contains(e.target) && sel !== e.target) return;
+            if (e.target.hasAttribute('data-resize-handle')) return;
+            e.preventDefault();
+            var coords = getSlideCoords(e); if (!coords) return;
+            if (window.getComputedStyle(sel).position === 'static') sel.style.position = 'relative';
+            Editor.pushHistory('Move element');
+            dragState = { el: sel, startX: coords.x, startY: coords.y, origLeft: parseFloat(sel.style.left)||0, origTop: parseFloat(sel.style.top)||0 };
+            document.addEventListener('mousemove', onDragMouseMove, true);
+            document.addEventListener('mouseup', onDragMouseUp, true);
+          }
+          function onDragMouseMove(e) {
+            if (!dragState) return;
+            var coords = getSlideCoords(e); if (!coords) return;
+            var dx = coords.x - dragState.startX, dy = coords.y - dragState.startY;
+            var newLeft = dragState.origLeft + dx, newTop = dragState.origTop + dy;
+            if (guidesEnabled) { var snap = computeSnap(dragState.el, newLeft, newTop); newLeft = snap.left; newTop = snap.top; }
+            dragState.el.style.left = px(newLeft); dragState.el.style.top = px(newTop);
+            updateHandles(); updateGapPanel();
+          }
+          function onDragMouseUp() { dragState = null; hideGuideLines(); document.removeEventListener('mousemove', onDragMouseMove, true); document.removeEventListener('mouseup', onDragMouseUp, true); }
+          // Resize
+          var HANDLE_NAMES = ['nw','n','ne','e','se','s','sw','w'];
+          var HANDLE_CURSORS = { nw:'nwse-resize', n:'ns-resize', ne:'nesw-resize', e:'ew-resize', se:'nwse-resize', s:'ns-resize', sw:'nesw-resize', w:'ew-resize' };
+          function createHandles() {
+            removeHandles();
+            HANDLE_NAMES.forEach(function (name) {
+              var h = document.createElement('div'); h.setAttribute('data-editor', 'true'); h.setAttribute('data-resize-handle', name);
+              Object.assign(h.style, { position:'fixed', width:'10px', height:'10px', background:'#fff', border:'1px solid #3b82f6', zIndex:'10010', cursor:HANDLE_CURSORS[name], display:'none', boxSizing:'border-box' });
+              h.addEventListener('mousedown', onResizeMouseDown);
+              document.body.appendChild(h); handleEls.push(h);
+            });
+          }
+          function removeHandles() { handleEls.forEach(function (h) { h.removeEventListener('mousedown', onResizeMouseDown); if (h.parentNode) h.parentNode.removeChild(h); }); handleEls = []; }
+          function showHandles() { if (!Editor.selected || !handleEls.length) return; positionHandles(); handleEls.forEach(function (h) { h.style.display = 'block'; }); }
+          function hideHandles() { handleEls.forEach(function (h) { h.style.display = 'none'; }); }
+          function positionHandles() {
+            if (!Editor.selected || !handleEls.length) return;
+            var r = elRect(Editor.selected); var scale = Editor.getScale();
+            var slide = Editor.getActiveSlide(); if (!slide) return;
+            var sRect = slide.getBoundingClientRect();
+            var sx = r.left*scale+sRect.left, sy = r.top*scale+sRect.top, sw = r.width*scale, sh = r.height*scale;
+            var pos = { nw:[sx,sy], n:[sx+sw/2,sy], ne:[sx+sw,sy], e:[sx+sw,sy+sh/2], se:[sx+sw,sy+sh], s:[sx+sw/2,sy+sh], sw:[sx,sy+sh], w:[sx,sy+sh/2] };
+            HANDLE_NAMES.forEach(function (name, i) { var p = pos[name]; handleEls[i].style.left = (p[0]-5)+'px'; handleEls[i].style.top = (p[1]-5)+'px'; });
+          }
+          function updateHandles() { if (Editor.selected) positionHandles(); }
+          function onResizeMouseDown(e) {
+            e.preventDefault(); e.stopPropagation(); if (!Editor.selected) return;
+            var hn = e.target.getAttribute('data-resize-handle'); var el = Editor.selected; var r = elRect(el);
+            Editor.pushHistory('Resize element');
+            resizeState = { el:el, handle:hn, startX:e.clientX, startY:e.clientY, origW:r.width, origH:r.height, origLeft:parseFloat(el.style.left)||0, origTop:parseFloat(el.style.top)||0, ratio:r.width/(r.height||1), isImg:el.tagName==='IMG' };
+            document.addEventListener('mousemove', onResizeMouseMove, true);
+            document.addEventListener('mouseup', onResizeMouseUp, true);
+          }
+          function onResizeMouseMove(e) {
+            if (!resizeState) return;
+            var scale = Editor.getScale(); var dx = (e.clientX-resizeState.startX)/scale, dy = (e.clientY-resizeState.startY)/scale;
+            var s = resizeState, nW = s.origW, nH = s.origH, nL = s.origLeft, nT = s.origTop, h = s.handle;
+            if (h.includes('e')) nW = Math.max(20, s.origW+dx);
+            if (h.includes('w')) { nW = Math.max(20, s.origW-dx); nL = s.origLeft+dx; }
+            if (h.includes('s')) nH = Math.max(20, s.origH+dy);
+            if (h.includes('n')) { nH = Math.max(20, s.origH-dy); nT = s.origTop+dy; }
+            if (s.isImg && !e.shiftKey) {
+              if (h==='n'||h==='s') nW = nH*s.ratio;
+              else if (h==='e'||h==='w') nH = nW/s.ratio;
+              else { nH = nW/s.ratio; if (h.includes('n')) nT = s.origTop+(s.origH-nH); }
+            }
+            s.el.style.width = px(nW); s.el.style.height = px(nH);
+            if (h.includes('w')) s.el.style.left = px(nL);
+            if (h.includes('n')) s.el.style.top = px(nT);
+            updateHandles(); updateGapPanel();
+          }
+          function onResizeMouseUp() { resizeState = null; document.removeEventListener('mousemove', onResizeMouseMove, true); document.removeEventListener('mouseup', onResizeMouseUp, true); }
+          // Alignment guidelines
+          function computeSnap(el, pL, pT) {
+            hideGuideLines();
+            var slide = Editor.getActiveSlide(); if (!slide) return { left: pL, top: pT };
+            var r = elRect(el); var baseLeft = r.left-(parseFloat(el.style.left)||0); var baseTop = r.top-(parseFloat(el.style.top)||0);
+            var elL = baseLeft+pL, elT = baseTop+pT, elR = elL+r.width, elB = elT+r.height;
+            var elCx = elL+r.width/2, elCy = elT+r.height/2;
+            var SNAP = 5, snapX = null, snapY = null, guides = [];
+            slide.querySelectorAll(':scope > *').forEach(function (sib) {
+              if (sib === el || isEditorUI(sib)) return;
+              var sr = elRect(sib); var sL = sr.left, sT = sr.top, sR = sL+sr.width, sB = sT+sr.height;
+              var sCx = sL+sr.width/2, sCy = sT+sr.height/2;
+              if (Math.abs(elCx-sCx)<SNAP && snapX===null) { snapX=sCx-r.width/2-baseLeft; guides.push({o:'v',p:sCx}); }
+              if (Math.abs(elL-sL)<SNAP && snapX===null) { snapX=sL-baseLeft; guides.push({o:'v',p:sL}); }
+              if (Math.abs(elR-sR)<SNAP && snapX===null) { snapX=sR-r.width-baseLeft; guides.push({o:'v',p:sR}); }
+              if (Math.abs(elCy-sCy)<SNAP && snapY===null) { snapY=sCy-r.height/2-baseTop; guides.push({o:'h',p:sCy}); }
+              if (Math.abs(elT-sT)<SNAP && snapY===null) { snapY=sT-baseTop; guides.push({o:'h',p:sT}); }
+              if (Math.abs(elB-sB)<SNAP && snapY===null) { snapY=sB-r.height-baseTop; guides.push({o:'h',p:sB}); }
+            });
+            var slideW = slide.offsetWidth, slideH = slide.offsetHeight;
+            if (Math.abs(elCx-slideW/2)<SNAP && snapX===null) { snapX=slideW/2-r.width/2-baseLeft; guides.push({o:'v',p:slideW/2}); }
+            if (Math.abs(elCy-slideH/2)<SNAP && snapY===null) { snapY=slideH/2-r.height/2-baseTop; guides.push({o:'h',p:slideH/2}); }
+            guides.forEach(function (g) { drawGuideLine(g.o, g.p); });
+            return { left: snapX!==null?snapX:pL, top: snapY!==null?snapY:pT };
+          }
+          function drawGuideLine(orient, slidePos) {
+            var slide = Editor.getActiveSlide(); if (!slide) return;
+            var sRect = slide.getBoundingClientRect(); var scale = Editor.getScale();
+            var line = document.createElement('div'); line.setAttribute('data-editor', 'true');
+            Object.assign(line.style, { position:'fixed', zIndex:'10005', pointerEvents:'none', background:'#ef4444' });
+            if (orient === 'v') { Object.assign(line.style, { left:(slidePos*scale+sRect.left)+'px', top:sRect.top+'px', width:'1px', height:sRect.height+'px' }); }
+            else { Object.assign(line.style, { left:sRect.left+'px', top:(slidePos*scale+sRect.top)+'px', width:sRect.width+'px', height:'1px' }); }
+            document.body.appendChild(line); guideLines.push(line);
+          }
+          function hideGuideLines() { guideLines.forEach(function (l) { if (l.parentNode) l.parentNode.removeChild(l); }); guideLines = []; }
+          // Gap / Margin controls
+          function createGapPanel() {
+            if (gapPanel) return;
+            gapPanel = document.createElement('div'); gapPanel.setAttribute('data-editor', 'true');
+            Object.assign(gapPanel.style, {
+              position:'fixed', zIndex:'10020', background:'#fff', border:'1px solid #e2e8f0',
+              borderRadius:'8px', boxShadow:'0 4px 16px rgba(0,0,0,0.12)', padding:'10px',
+              display:'none', fontFamily:'system-ui, sans-serif', fontSize:'11px', userSelect:'none', width:'170px'
+            });
+            gapPanel.innerHTML = buildSpacing('Margin','margin') + buildSpacing('Padding','padding');
+            document.body.appendChild(gapPanel);
+            gapPanel.querySelectorAll('input[data-spacing]').forEach(function (inp) {
+              inp.addEventListener('change', onSpacingChange);
+              inp.addEventListener('keydown', function (e) {
+                if (e.key!=='ArrowUp' && e.key!=='ArrowDown') return;
+                e.preventDefault(); var step = e.shiftKey?10:1, dir = e.key==='ArrowUp'?1:-1;
+                e.target.value = parseInt(e.target.value||0,10)+step*dir;
+                e.target.dispatchEvent(new Event('change'));
+              });
+            });
+          }
+          function buildSpacing(label, prop) {
+            var sides = ['top','right','bottom','left'], labels = ['T','R','B','L'];
+            var html = '<div style="font-weight:700;margin-bottom:4px;color:#334155;">'+label+'</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:3px;">';
+            sides.forEach(function (side, i) {
+              html += '<div style="display:flex;align-items:center;gap:3px;"><span style="color:#94a3b8;width:12px;text-align:center;">'+labels[i]+'</span><input data-spacing="'+prop+'-'+side+'" type="number" value="0" style="width:50px;border:1px solid #e2e8f0;border-radius:3px;padding:2px 4px;font-size:11px;text-align:right;outline:none;" /></div>';
+            });
+            html += '</div>';
+            if (prop==='margin') html += '<div style="height:6px;border-bottom:1px solid #f1f5f9;margin-bottom:6px;"></div>';
+            return html;
+          }
+          function camelCase(s) { return s.replace(/-([a-z])/g, function (m,c) { return c.toUpperCase(); }); }
+          function onSpacingChange(e) {
+            if (!Editor.selected) return;
+            Editor.pushHistory('Change spacing');
+            Editor.selected.style[camelCase(e.target.getAttribute('data-spacing'))] = (parseInt(e.target.value,10)||0)+'px';
+            updateHandles();
+          }
+          function showGapPanel() {
+            if (!gapPanel || !Editor.selected) return;
+            var cs = window.getComputedStyle(Editor.selected);
+            gapPanel.querySelectorAll('input[data-spacing]').forEach(function (inp) { inp.value = parseInt(cs[camelCase(inp.getAttribute('data-spacing'))],10)||0; });
+            var r = Editor.selected.getBoundingClientRect();
+            var pL = r.right+12; if (pL+180>window.innerWidth) pL = r.left-182;
+            var pT = r.top; if (pT+220>window.innerHeight) pT = window.innerHeight-230;
+            gapPanel.style.left = pL+'px'; gapPanel.style.top = Math.max(8,pT)+'px'; gapPanel.style.display = 'block';
+          }
+          function hideGapPanel() { if (gapPanel) gapPanel.style.display = 'none'; }
+          function updateGapPanel() { if (gapPanel && gapPanel.style.display !== 'none') showGapPanel(); }
+          // Image replace
+          function createFileInput() {
+            if (fileInput) return;
+            fileInput = document.createElement('input'); fileInput.type = 'file'; fileInput.accept = 'image/*';
+            fileInput.setAttribute('data-editor', 'true'); fileInput.style.display = 'none';
+            document.body.appendChild(fileInput);
+            fileInput.addEventListener('change', function (e) {
+              var file = e.target.files && e.target.files[0];
+              if (!file || !Editor.selected || Editor.selected.tagName !== 'IMG') return;
+              Editor.pushHistory('Replace image');
+              var reader = new FileReader();
+              reader.onload = function (evt) { Editor.selected.src = evt.target.result; Editor.notify('Image replaced'); };
+              reader.readAsDataURL(file); fileInput.value = '';
+            });
+          }
+          // Toolbar
+          function createToolbar() {
+            var center = document.getElementById('toolbarCenter'); if (!center) return;
+            function makeToolBtn(icon, title) {
+              var btn = document.createElement('button'); btn.setAttribute('data-editor', 'true');
+              btn.textContent = icon; btn.title = title;
+              Object.assign(btn.style, { width:'32px', height:'32px', border:'1px solid #e2e8f0', borderRadius:'6px', background:'#f1f5f9', cursor:'pointer', fontSize:'14px', display:'inline-flex', alignItems:'center', justifyContent:'center', margin:'0 2px', transition:'background 0.15s' });
+              return btn;
+            }
+            var moveBtn = makeToolBtn('\u271D', 'Move (drag selected element)'); moveBtn.style.opacity = '0.6'; moveBtn.style.cursor = 'default'; toolbarBtns.push(moveBtn); center.appendChild(moveBtn);
+            var resizeInd = makeToolBtn('\u2B12', 'Resize (use corner handles)'); resizeInd.style.opacity = '0.6'; resizeInd.style.cursor = 'default'; toolbarBtns.push(resizeInd); center.appendChild(resizeInd);
+            var guideBtn = makeToolBtn('\uD83D\uDCD0', 'Toggle alignment guides');
+            guideBtn.style.background = guidesEnabled ? '#dbeafe' : '#f1f5f9';
+            guideBtn.addEventListener('click', function () { guidesEnabled = !guidesEnabled; guideBtn.style.background = guidesEnabled?'#dbeafe':'#f1f5f9'; Editor.notify('Alignment guides '+(guidesEnabled?'ON':'OFF')); });
+            toolbarBtns.push(guideBtn); center.appendChild(guideBtn);
+            replaceBtn = makeToolBtn('\uD83D\uDDBC\uFE0F', 'Replace image'); replaceBtn.style.display = 'none';
+            replaceBtn.addEventListener('click', function () { if (Editor.selected && Editor.selected.tagName === 'IMG' && fileInput) fileInput.click(); });
+            toolbarBtns.push(replaceBtn); center.appendChild(replaceBtn);
+          }
+          function removeToolbar() { toolbarBtns.forEach(function (b) { if (b.parentNode) b.parentNode.removeChild(b); }); toolbarBtns = []; replaceBtn = null; }
+          function onSelect() { showHandles(); showGapPanel(); if (replaceBtn) replaceBtn.style.display = (Editor.selected && Editor.selected.tagName==='IMG') ? 'inline-flex' : 'none'; if (Editor.selected) Editor.selected.style.cursor = 'move'; }
+          function onDeselect() { hideHandles(); hideGapPanel(); hideGuideLines(); if (replaceBtn) replaceBtn.style.display = 'none'; }
+          Editor.registerModule('elements', {
+            init: function () { createHandles(); createGapPanel(); createFileInput(); createToolbar(); },
+            activate: function () {
+              document.addEventListener('mousedown', onDragMouseDown, true);
+              document.addEventListener('editor:select', onSelect);
+              document.addEventListener('editor:deselect', onDeselect);
+              if (Editor.selected) { showHandles(); showGapPanel(); }
+            },
+            deactivate: function () {
+              document.removeEventListener('mousedown', onDragMouseDown, true);
+              document.removeEventListener('editor:select', onSelect);
+              document.removeEventListener('editor:deselect', onDeselect);
+              document.removeEventListener('mousemove', onDragMouseMove, true);
+              document.removeEventListener('mouseup', onDragMouseUp, true);
+              document.removeEventListener('mousemove', onResizeMouseMove, true);
+              document.removeEventListener('mouseup', onResizeMouseUp, true);
+              hideHandles(); hideGapPanel(); hideGuideLines(); removeHandles(); removeToolbar();
+              if (gapPanel && gapPanel.parentNode) gapPanel.parentNode.removeChild(gapPanel); gapPanel = null;
+              if (fileInput && fileInput.parentNode) fileInput.parentNode.removeChild(fileInput); fileInput = null;
+              dragState = null; resizeState = null;
+            }
+          });
+        })();
+
+        // ── Module 4: Slide Management, Layers & Animation ────────────────
+        (function () {
+          'use strict';
+          var slidePanel=null, layerPanel=null, animPanel=null;
+          var slidePanelOpen=false, layerPanelOpen=false;
+          var slidePanelBtn=null, layerPanelBtn=null, animBtn=null, animStyleEl=null;
+          var dragSrcThumb=null, dragSrcIndex=-1, layerDragSrc=null, layerDragSrcIndex=-1;
+          var ANIMATIONS = [
+            {value:'',label:'None'},{value:'fadeIn',label:'Fade In'},
+            {value:'slideLeft',label:'Slide Left'},{value:'slideRight',label:'Slide Right'},
+            {value:'scaleUp',label:'Scale Up'},{value:'bounce',label:'Bounce'}
+          ];
+          var ANIM_CSS = '[data-anim="fadeIn"]{animation:editorFadeIn .6s ease both}@keyframes editorFadeIn{from{opacity:0}to{opacity:1}}[data-anim="slideLeft"]{animation:editorSlideLeft .6s ease both}@keyframes editorSlideLeft{from{opacity:0;transform:translateX(60px)}to{opacity:1;transform:translateX(0)}}[data-anim="slideRight"]{animation:editorSlideRight .6s ease both}@keyframes editorSlideRight{from{opacity:0;transform:translateX(-60px)}to{opacity:1;transform:translateX(0)}}[data-anim="scaleUp"]{animation:editorScaleUp .6s ease both}@keyframes editorScaleUp{from{opacity:0;transform:scale(.7)}to{opacity:1;transform:scale(1)}}[data-anim="bounce"]{animation:editorBounce .8s ease both}@keyframes editorBounce{0%{opacity:0;transform:translateY(40px)}50%{transform:translateY(-10px)}70%{transform:translateY(5px)}100%{opacity:1;transform:translateY(0)}}';
+
+          function refreshSlides() {
+            window.slides = document.querySelectorAll('.s'); window.total = window.slides.length;
+            var totEl = document.getElementById('tot'); if (totEl) totEl.textContent = window.total;
+            var curEl = document.getElementById('cur'); if (curEl) curEl.textContent = window.idx+1;
+          }
+          function navigateTo(i) { window.idx = Math.max(0, Math.min(window.total-1, i)); show(window.idx); refreshThumbnails(); refreshLayers(); }
+          function describeElement(el) {
+            var tag = el.tagName.toLowerCase();
+            if (tag==='img') return 'Image'; if (tag==='svg') return 'SVG'; if (tag==='video') return 'Video';
+            var text = (el.textContent||'').trim();
+            if (!text && el.children.length>0) return 'Container';
+            return text.length>20 ? text.substring(0,20)+'\u2026' : text || tag;
+          }
+          // Slide panel
+          function createSlidePanel() {
+            slidePanel = document.createElement('div'); slidePanel.id = 'editorSlidePanel'; slidePanel.setAttribute('data-editor','true');
+            Object.assign(slidePanel.style, { position:'fixed', left:'0', top:'48px', bottom:'0', width:'180px', background:'#111827', zIndex:'9997', overflowY:'auto', overflowX:'hidden', display:'none', padding:'8px 0', fontFamily:'var(--f-sans)' });
+            document.body.appendChild(slidePanel);
+          }
+          function addNewSlide() {
+            var allSlides = document.querySelectorAll('.s');
+            var lastSlide = allSlides[allSlides.length - 1];
+            if (!lastSlide) return;
+            Editor.pushHistory('Add new slide');
+            var newSlide = document.createElement('div');
+            newSlide.className = 's';
+            newSlide.innerHTML = '<h2 class="st">New Slide</h2>\n<div class="gm">Content here</div>';
+            if (lastSlide.nextSibling) lastSlide.parentNode.insertBefore(newSlide, lastSlide.nextSibling);
+            else lastSlide.parentNode.appendChild(newSlide);
+            refreshSlides();
+            navigateTo(window.total - 1);
+            Editor.notify('New slide added');
+          }
+          function refreshThumbnails() {
+            if (!slidePanel) return; slidePanel.innerHTML = '';
+            // Add "+" button at top
+            var addBtn = document.createElement('div'); addBtn.setAttribute('data-editor', 'true');
+            Object.assign(addBtn.style, {
+              margin: '6px 10px 2px', padding: '8px', textAlign: 'center', cursor: 'pointer',
+              border: '2px dashed #4b5563', borderRadius: '6px', color: '#9ca3af',
+              fontSize: '0.8rem', fontWeight: '600', transition: 'all 0.15s'
+            });
+            addBtn.textContent = '+ New Slide';
+            addBtn.addEventListener('mouseenter', function () { addBtn.style.borderColor = '#3b82f6'; addBtn.style.color = '#3b82f6'; });
+            addBtn.addEventListener('mouseleave', function () { addBtn.style.borderColor = '#4b5563'; addBtn.style.color = '#9ca3af'; });
+            addBtn.addEventListener('click', function () { addNewSlide(); });
+            slidePanel.appendChild(addBtn);
+            var allSlides = document.querySelectorAll('.s');
+            for (var i=0; i<allSlides.length; i++) {
+              (function (index) {
+                var slide = allSlides[index];
+                var item = document.createElement('div'); item.setAttribute('data-editor','true'); item.setAttribute('data-thumb-index', String(index)); item.draggable = true;
+                Object.assign(item.style, { margin:'6px 10px', cursor:'pointer', position:'relative', borderRadius:'6px', transition:'transform 0.15s' });
+                var label = document.createElement('div'); label.setAttribute('data-editor','true'); label.textContent = String(index+1);
+                Object.assign(label.style, { fontSize:'0.65rem', fontWeight:'600', color:'#9ca3af', marginBottom:'3px', paddingLeft:'2px', display:'flex', justifyContent:'space-between', alignItems:'center' });
+                var actions = document.createElement('span'); actions.setAttribute('data-editor','true'); Object.assign(actions.style, { display:'flex', gap:'2px' });
+                var dupBtn = document.createElement('button'); dupBtn.setAttribute('data-editor','true'); dupBtn.innerHTML = '\u2398'; dupBtn.title = 'Duplicate slide';
+                Object.assign(dupBtn.style, { background:'none', border:'none', color:'#6b7280', cursor:'pointer', fontSize:'0.75rem', padding:'1px 3px', borderRadius:'3px', lineHeight:'1' });
+                dupBtn.addEventListener('click', function (e) { e.stopPropagation(); duplicateSlide(index); });
+                var delBtn = document.createElement('button'); delBtn.setAttribute('data-editor','true'); delBtn.innerHTML = '\u2715'; delBtn.title = 'Delete slide';
+                Object.assign(delBtn.style, { background:'none', border:'none', color:'#6b7280', cursor:'pointer', fontSize:'0.7rem', padding:'1px 3px', borderRadius:'3px', lineHeight:'1' });
+                delBtn.addEventListener('click', function (e) { e.stopPropagation(); deleteSlide(index); });
+                actions.appendChild(dupBtn); actions.appendChild(delBtn); label.appendChild(actions);
+                var thumbWrap = document.createElement('div'); thumbWrap.setAttribute('data-editor','true');
+                Object.assign(thumbWrap.style, { width:'160px', height:'90px', overflow:'hidden', borderRadius:'6px', border: index===window.idx ? '2px solid #3b82f6' : '2px solid transparent', background:'#1e293b', position:'relative' });
+                var clone = slide.cloneNode(true); clone.setAttribute('data-editor','true'); clone.classList.remove('active'); clone.id = '';
+                var eds = clone.querySelectorAll('[data-editor="true"]'); for (var e=0; e<eds.length; e++) eds[e].remove();
+                Object.assign(clone.style, { position:'absolute', top:'0', left:'0', width:'1280px', height:'720px', transform:'scale(0.125)', transformOrigin:'top left', pointerEvents:'none', display:'block', opacity:'1' });
+                thumbWrap.appendChild(clone); item.appendChild(label); item.appendChild(thumbWrap);
+                item.addEventListener('click', function () { navigateTo(index); });
+                // Drag reorder
+                item.addEventListener('dragstart', function (e) { dragSrcThumb=item; dragSrcIndex=index; item.style.opacity='0.5'; e.dataTransfer.effectAllowed='move'; e.dataTransfer.setData('text/plain', String(index)); });
+                item.addEventListener('dragend', function () { item.style.opacity='1'; dragSrcThumb=null; dragSrcIndex=-1; });
+                item.addEventListener('dragover', function (e) { e.preventDefault(); e.dataTransfer.dropEffect='move'; var rect=item.getBoundingClientRect(); var midY=rect.top+rect.height/2; item.style.borderTop=e.clientY<midY?'2px solid #3b82f6':''; item.style.borderBottom=e.clientY>=midY?'2px solid #3b82f6':''; });
+                item.addEventListener('dragleave', function () { item.style.borderTop=''; item.style.borderBottom=''; });
+                item.addEventListener('drop', function (e) {
+                  e.preventDefault(); item.style.borderTop=''; item.style.borderBottom='';
+                  var from=dragSrcIndex, to=index; if (from===to) return;
+                  var rect=item.getBoundingClientRect(); if (e.clientY>=rect.top+rect.height/2) to++;
+                  reorderSlide(from, to);
+                });
+                slidePanel.appendChild(item);
+              })(i);
+            }
+          }
+          function duplicateSlide(index) {
+            var allSlides = document.querySelectorAll('.s'); if (index<0||index>=allSlides.length) return;
+            Editor.pushHistory('Duplicate slide '+(index+1));
+            var clone = allSlides[index].cloneNode(true); clone.classList.remove('active'); clone.removeAttribute('id');
+            var eds = clone.querySelectorAll('[data-editor="true"]'); for (var i=0;i<eds.length;i++) eds[i].remove();
+            if (allSlides[index].nextSibling) allSlides[index].parentNode.insertBefore(clone, allSlides[index].nextSibling);
+            else allSlides[index].parentNode.appendChild(clone);
+            refreshSlides(); navigateTo(index+1); Editor.notify('Slide duplicated');
+          }
+          function deleteSlide(index) {
+            var allSlides = document.querySelectorAll('.s');
+            if (allSlides.length<=1) { Editor.notify('Cannot delete the last slide'); return; }
+            if (!confirm('Delete slide '+(index+1)+'?')) return;
+            Editor.pushHistory('Delete slide '+(index+1));
+            allSlides[index].remove(); refreshSlides();
+            navigateTo(Math.min(index, window.total-1)); Editor.notify('Slide deleted');
+          }
+          function reorderSlide(from, to) {
+            var allSlides = document.querySelectorAll('.s'); if (from<0||from>=allSlides.length) return;
+            Editor.pushHistory('Reorder slide '+(from+1));
+            var el = allSlides[from]; var parent = el.parentNode; parent.removeChild(el);
+            var updated = document.querySelectorAll('.s');
+            var ins = to>from?to-1:to; ins = Math.max(0, Math.min(updated.length, ins));
+            if (ins>=updated.length) { var last=updated[updated.length-1]; if (last.nextSibling) parent.insertBefore(el, last.nextSibling); else parent.appendChild(el); }
+            else parent.insertBefore(el, updated[ins]);
+            refreshSlides(); navigateTo(ins); Editor.notify('Slide moved');
+          }
+          // Layer panel
+          function createLayerPanel() {
+            layerPanel = document.createElement('div'); layerPanel.id = 'editorLayerPanel'; layerPanel.setAttribute('data-editor','true');
+            Object.assign(layerPanel.style, { position:'fixed', right:'0', top:'48px', bottom:'0', width:'200px', background:'#fff', borderLeft:'1px solid #e2e8f0', zIndex:'9997', overflowY:'auto', display:'none', fontFamily:'var(--f-sans)', fontSize:'0.8rem' });
+            var header = document.createElement('div'); header.setAttribute('data-editor','true');
+            Object.assign(header.style, { padding:'10px 12px', fontWeight:'700', fontSize:'0.75rem', color:'#64748b', textTransform:'uppercase', letterSpacing:'0.05em', borderBottom:'1px solid #e2e8f0' });
+            header.textContent = 'Layers'; layerPanel.appendChild(header);
+            var listEl = document.createElement('div'); listEl.id = 'editorLayerList'; listEl.setAttribute('data-editor','true');
+            Object.assign(listEl.style, { padding:'4px 0' }); layerPanel.appendChild(listEl);
+            document.body.appendChild(layerPanel);
+          }
+          function refreshLayers() {
+            if (!layerPanel) return;
+            var list = document.getElementById('editorLayerList'); if (!list) return; list.innerHTML = '';
+            var activeSlide = Editor.getActiveSlide(); if (!activeSlide) return;
+            var children = activeSlide.children;
+            for (var i=0; i<children.length; i++) {
+              (function (ci) {
+                var child = children[ci];
+                if (child.getAttribute('data-editor')==='true') return;
+                var row = document.createElement('div'); row.setAttribute('data-editor','true'); row.setAttribute('data-layer-index', String(ci)); row.draggable = true;
+                Object.assign(row.style, { display:'flex', alignItems:'center', padding:'6px 10px', cursor:'pointer', borderBottom:'1px solid #f1f5f9', gap:'6px', background: Editor.selected===child ? '#eff6ff' : 'transparent', transition:'background 0.1s' });
+                var tag = document.createElement('span'); tag.setAttribute('data-editor','true'); tag.textContent = child.tagName.toLowerCase();
+                Object.assign(tag.style, { fontSize:'0.6rem', fontWeight:'700', color:'#8b5cf6', background:'#f5f3ff', padding:'1px 4px', borderRadius:'3px', flexShrink:'0', textTransform:'uppercase' });
+                var desc = document.createElement('span'); desc.setAttribute('data-editor','true'); desc.textContent = describeElement(child);
+                Object.assign(desc.style, { flex:'1', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', color:'#334155', fontSize:'0.75rem' });
+                var eyeBtn = document.createElement('button'); eyeBtn.setAttribute('data-editor','true');
+                var isHidden = child.style.display==='none';
+                eyeBtn.innerHTML = isHidden ? '\uD83D\uDE48' : '\uD83D\uDC41\uFE0F';
+                eyeBtn.title = 'Toggle visibility';
+                Object.assign(eyeBtn.style, { background:'none', border:'none', cursor:'pointer', fontSize:'0.7rem', padding:'2px', flexShrink:'0', opacity: isHidden?'0.4':'1' });
+                eyeBtn.addEventListener('click', function (e) {
+                  e.stopPropagation(); Editor.pushHistory('Toggle visibility');
+                  if (child.style.display==='none') { child.style.display=''; eyeBtn.innerHTML='\uD83D\uDC41\uFE0F'; eyeBtn.style.opacity='1'; }
+                  else { child.style.display='none'; eyeBtn.innerHTML='\uD83D\uDE48'; eyeBtn.style.opacity='0.4'; }
+                });
+                row.addEventListener('click', function () { Editor.select(child); refreshLayers(); });
+                row.addEventListener('mouseenter', function () { if (Editor.selected!==child) row.style.background='#f8fafc'; });
+                row.addEventListener('mouseleave', function () { row.style.background = Editor.selected===child ? '#eff6ff' : 'transparent'; });
+                // Layer drag reorder
+                row.addEventListener('dragstart', function (e) { layerDragSrc=row; layerDragSrcIndex=ci; row.style.opacity='0.5'; e.dataTransfer.effectAllowed='move'; e.dataTransfer.setData('text/plain', String(ci)); });
+                row.addEventListener('dragend', function () { row.style.opacity='1'; layerDragSrc=null; layerDragSrcIndex=-1; });
+                row.addEventListener('dragover', function (e) { e.preventDefault(); e.dataTransfer.dropEffect='move'; var rect=row.getBoundingClientRect(); var midY=rect.top+rect.height/2; row.style.borderTop=e.clientY<midY?'2px solid #3b82f6':''; row.style.borderBottom=e.clientY>=midY?'2px solid #3b82f6':''; });
+                row.addEventListener('dragleave', function () { row.style.borderTop=''; row.style.borderBottom=''; });
+                row.addEventListener('drop', function (e) {
+                  e.preventDefault(); row.style.borderTop=''; row.style.borderBottom='';
+                  var fromIdx=layerDragSrcIndex, toIdx=ci; if (fromIdx===toIdx) return;
+                  var rect=row.getBoundingClientRect(); var insertBefore = e.clientY<rect.top+rect.height/2;
+                  Editor.pushHistory('Reorder layer');
+                  var slideEl = Editor.getActiveSlide();
+                  var allChildren = Array.prototype.slice.call(slideEl.children).filter(function (c) { return c.getAttribute('data-editor')!=='true'; });
+                  var movedEl = allChildren[fromIdx]; var targetEl = allChildren[toIdx];
+                  if (insertBefore) slideEl.insertBefore(movedEl, targetEl);
+                  else { if (targetEl.nextSibling) slideEl.insertBefore(movedEl, targetEl.nextSibling); else slideEl.appendChild(movedEl); }
+                  refreshLayers(); Editor.notify('Layer reordered');
+                });
+                row.appendChild(tag); row.appendChild(desc); row.appendChild(eyeBtn); list.appendChild(row);
+              })(i);
+            }
+          }
+          // Animation panel
+          function createAnimPanel() {
+            animPanel = document.createElement('div'); animPanel.id = 'editorAnimPanel'; animPanel.setAttribute('data-editor','true');
+            Object.assign(animPanel.style, { position:'fixed', top:'54px', right:'60px', width:'200px', background:'#fff', border:'1px solid #e2e8f0', borderRadius:'8px', boxShadow:'0 8px 24px rgba(0,0,0,0.12)', zIndex:'10000', display:'none', fontFamily:'var(--f-sans)', padding:'8px 0' });
+            var header = document.createElement('div'); header.setAttribute('data-editor','true'); header.textContent = 'Animation';
+            Object.assign(header.style, { padding:'6px 12px 8px', fontWeight:'700', fontSize:'0.75rem', color:'#64748b', textTransform:'uppercase', letterSpacing:'0.05em', borderBottom:'1px solid #e2e8f0' });
+            animPanel.appendChild(header);
+            for (var a=0; a<ANIMATIONS.length; a++) {
+              (function (anim) {
+                var opt = document.createElement('div'); opt.setAttribute('data-editor','true'); opt.setAttribute('data-anim-value', anim.value);
+                Object.assign(opt.style, { padding:'6px 12px', cursor:'pointer', fontSize:'0.8rem', color:'#334155', display:'flex', alignItems:'center', gap:'6px', transition:'background 0.1s' });
+                var radio = document.createElement('span'); radio.setAttribute('data-editor','true'); radio.className='anim-radio';
+                Object.assign(radio.style, { width:'14px', height:'14px', borderRadius:'50%', border:'2px solid #cbd5e1', flexShrink:'0', display:'inline-block', position:'relative' });
+                var lbl = document.createElement('span'); lbl.setAttribute('data-editor','true'); lbl.textContent = anim.label;
+                opt.appendChild(radio); opt.appendChild(lbl);
+                opt.addEventListener('mouseenter', function () { opt.style.background='#f8fafc'; });
+                opt.addEventListener('mouseleave', function () { opt.style.background='transparent'; });
+                opt.addEventListener('click', function () { applyAnimation(anim.value); });
+                animPanel.appendChild(opt);
+              })(ANIMATIONS[a]);
+            }
+            var pw = document.createElement('div'); pw.setAttribute('data-editor','true');
+            Object.assign(pw.style, { padding:'8px 12px 4px', borderTop:'1px solid #e2e8f0', marginTop:'4px' });
+            var pb = document.createElement('button'); pb.setAttribute('data-editor','true'); pb.textContent = 'Preview';
+            Object.assign(pb.style, { width:'100%', padding:'6px', background:'#3b82f6', color:'#fff', border:'none', borderRadius:'6px', fontSize:'0.75rem', fontWeight:'600', cursor:'pointer', transition:'background 0.15s' });
+            pb.addEventListener('click', function () { previewAnimation(); });
+            pw.appendChild(pb); animPanel.appendChild(pw);
+            document.body.appendChild(animPanel);
+          }
+          function applyAnimation(value) {
+            if (!Editor.selected) { Editor.notify('Select an element first'); return; }
+            Editor.pushHistory('Set animation');
+            if (value) Editor.selected.setAttribute('data-anim', value);
+            else Editor.selected.removeAttribute('data-anim');
+            updateAnimSelection(); Editor.notify('Animation: '+(value||'None'));
+          }
+          function previewAnimation() {
+            if (!Editor.selected) { Editor.notify('Select an element first'); return; }
+            var anim = Editor.selected.getAttribute('data-anim');
+            if (!anim) { Editor.notify('No animation set'); return; }
+            Editor.selected.style.animation = 'none'; void Editor.selected.offsetHeight; Editor.selected.style.animation = '';
+          }
+          function updateAnimSelection() {
+            if (!animPanel) return;
+            var cur = Editor.selected ? (Editor.selected.getAttribute('data-anim')||'') : '';
+            var opts = animPanel.querySelectorAll('[data-anim-value]');
+            for (var i=0; i<opts.length; i++) {
+              var v = opts[i].getAttribute('data-anim-value'); var r = opts[i].querySelector('.anim-radio');
+              if (r) { if (v===cur) { r.style.borderColor='#3b82f6'; r.style.background='#3b82f6'; r.style.boxShadow='inset 0 0 0 2px #fff'; } else { r.style.borderColor='#cbd5e1'; r.style.background='transparent'; r.style.boxShadow='none'; } }
+            }
+          }
+          function injectAnimCSS() { if (animStyleEl) return; animStyleEl=document.createElement('style'); animStyleEl.setAttribute('data-editor','true'); animStyleEl.textContent=ANIM_CSS; document.head.appendChild(animStyleEl); }
+          function toggleSlidePanel() {
+            slidePanelOpen = !slidePanelOpen;
+            if (slidePanel) { slidePanel.style.display = slidePanelOpen?'block':'none'; if (slidePanelOpen) refreshThumbnails(); }
+            if (slidePanelBtn) slidePanelBtn.style.background = slidePanelOpen?'rgba(59,130,246,0.25)':'transparent';
+          }
+          function toggleLayerPanel() {
+            layerPanelOpen = !layerPanelOpen;
+            if (layerPanel) { layerPanel.style.display = layerPanelOpen?'block':'none'; if (layerPanelOpen) refreshLayers(); }
+            if (layerPanelBtn) layerPanelBtn.style.background = layerPanelOpen?'rgba(59,130,246,0.25)':'transparent';
+          }
+          function toggleAnimPanel() {
+            if (!animPanel) return;
+            if (!Editor.selected) { Editor.notify('Select an element first'); return; }
+            var vis = animPanel.style.display!=='none'; animPanel.style.display = vis?'none':'block';
+            if (!vis) updateAnimSelection();
+          }
+          function onSlideChange() { if (slidePanelOpen) refreshThumbnails(); if (layerPanelOpen) refreshLayers(); if (animPanel) animPanel.style.display='none'; }
+          function onSelect() { if (layerPanelOpen) refreshLayers(); updateAnimSelection(); }
+          function onDeselect() { if (layerPanelOpen) refreshLayers(); if (animPanel) animPanel.style.display='none'; }
+          var _origShow = null;
+          function patchShow() { if (_origShow) return; _origShow=window.show; window.show=function(i){ _origShow(i); onSlideChange(); }; }
+          function unpatchShow() { if (_origShow) { window.show=_origShow; _origShow=null; } }
+
+          function makeBtn(label, title, onClick) {
+            var btn=document.createElement('button'); btn.setAttribute('data-editor','true'); btn.innerHTML=label; btn.title=title;
+            Object.assign(btn.style, { minWidth:'36px', height:'36px', background:'transparent', border:'none', color:'#fff', borderRadius:'6px', fontSize:'1rem', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', padding:'0 8px', transition:'background 0.15s' });
+            btn.addEventListener('mouseenter', function(){ if(!btn._active) btn.style.background='rgba(255,255,255,0.1)'; });
+            btn.addEventListener('mouseleave', function(){ if(!btn._active) btn.style.background='transparent'; });
+            btn.addEventListener('click', onClick); return btn;
+          }
+          function makeSep() {
+            var sep=document.createElement('div'); sep.setAttribute('data-editor','true');
+            Object.assign(sep.style, { width:'1px', height:'24px', background:'rgba(255,255,255,0.15)', margin:'0 8px' });
+            return sep;
+          }
+
+          Editor.registerModule('slides', {
+            init: function () {
+              createSlidePanel(); createLayerPanel(); createAnimPanel(); injectAnimCSS();
+              var toolbarRight = document.getElementById('toolbarRight');
+              if (toolbarRight) {
+                var sep = makeSep();
+                slidePanelBtn = makeBtn('\uD83D\uDCD1', 'Toggle slide panel', toggleSlidePanel);
+                layerPanelBtn = makeBtn('\uD83D\uDCD0', 'Toggle layer panel', toggleLayerPanel);
+                animBtn = makeBtn('\u2728', 'Animation settings', toggleAnimPanel);
+                var fc = toolbarRight.firstChild;
+                toolbarRight.insertBefore(animBtn, fc);
+                toolbarRight.insertBefore(layerPanelBtn, animBtn);
+                toolbarRight.insertBefore(slidePanelBtn, layerPanelBtn);
+                toolbarRight.insertBefore(sep, slidePanelBtn);
+              }
+              document.addEventListener('editor:select', onSelect);
+              document.addEventListener('editor:deselect', onDeselect);
+            },
+            activate: function () {
+              patchShow();
+              if (slidePanelOpen && slidePanel) { slidePanel.style.display='block'; refreshThumbnails(); }
+              if (layerPanelOpen && layerPanel) { layerPanel.style.display='block'; refreshLayers(); }
+            },
+            deactivate: function () {
+              unpatchShow();
+              if (slidePanel) slidePanel.style.display='none';
+              if (layerPanel) layerPanel.style.display='none';
+              if (animPanel) animPanel.style.display='none';
+            }
+          });
+        })();
+        // ── Module 5: Diagnostics & Troubleshooting ─────────────────────
+        (function () {
+          'use strict';
+          var diagPanel = null, diagBtn = null, isOpen = false;
+
+          // Error-cause knowledge base (Korean explanations)
+          var ERROR_DB = {
+            'save': {
+              pattern: /save|저장/i,
+              title: '저장 실패',
+              causes: [
+                { check: function () { return location.protocol === 'file:'; },
+                  why: '파일을 직접 열어서 사용 중입니다 (file:// 프로토콜).',
+                  explain: '브라우저에서 HTML 파일을 직접 열면 보안 정책 때문에 서버와 통신할 수 없습니다. 저장 기능은 개발 서버를 통해서만 작동합니다.',
+                  fix: '터미널에서 npm run serve 를 실행한 뒤, http://localhost:3000 으로 접속하세요.' },
+                { check: function () { return location.protocol === 'http:' && location.hostname === 'localhost'; },
+                  why: '서버는 실행 중이지만 파일 쓰기 권한 문제일 수 있습니다.',
+                  explain: '슬라이드 파일이 읽기 전용이거나, 파일 경로가 올바르지 않으면 저장에 실패합니다.',
+                  fix: 'slides/ 폴더의 파일 권한을 확인하세요. (chmod 644 slides/*.html)' }
+              ]
+            },
+            'build': {
+              pattern: /build|빌드/i,
+              title: '빌드 실패',
+              causes: [
+                { check: function () { return true; },
+                  why: 'Node.js가 설치되지 않았거나 스크립트 경로 문제입니다.',
+                  explain: '빌드 스크립트(scripts/build.js)는 Node.js로 실행됩니다. Node.js가 없거나 프로젝트 경로에서 실행하지 않으면 실패합니다.',
+                  fix: '1) Node.js 설치 확인: node --version\n2) 프로젝트 루트에서 실행: cd 프로젝트폴더 && npm run build' }
+              ]
+            },
+            'image': {
+              pattern: /image|이미지|img/i,
+              title: '이미지 문제',
+              causes: [
+                { check: function () { return true; },
+                  why: '이미지 파일 경로가 올바르지 않습니다.',
+                  explain: '슬라이드에서 이미지는 상대 경로(../assets/파일명)를 사용합니다. 빌드 후에는 dist/에서 assets/를 참조하므로 경로가 달라질 수 있습니다.',
+                  fix: '이미지 경로를 확인하세요:\n- 슬라이드 편집 시: ../assets/파일명\n- 빌드 후: assets/파일명' }
+              ]
+            },
+            'edit': {
+              pattern: /edit|편집|수정/i,
+              title: '편집 문제',
+              causes: [
+                { check: function () { return !Editor.active; },
+                  why: '편집 모드가 꺼져 있습니다.',
+                  explain: '슬라이드를 수정하려면 먼저 편집 모드를 켜야 합니다. 편집 모드에서만 텍스트 수정, 요소 이동 등이 가능합니다.',
+                  fix: '오른쪽 상단의 연필 버튼(✏️)을 클릭하여 편집 모드를 켜세요.' },
+                { check: function () { return Editor.active; },
+                  why: '요소를 선택하지 않았습니다.',
+                  explain: '텍스트 수정, 크기 변경, 색상 변경 등의 기능은 먼저 요소를 클릭해서 선택해야 작동합니다. 선택된 요소는 파란 테두리로 표시됩니다.',
+                  fix: '수정하려는 텍스트나 이미지를 클릭하여 선택하세요. 텍스트 편집은 더블클릭하면 됩니다.' }
+              ]
+            },
+            'undo': {
+              pattern: /undo|되돌리기|실행취소/i,
+              title: 'Undo 불가',
+              causes: [
+                { check: function () { return Editor.history.length === 0; },
+                  why: '되돌릴 작업 기록이 없습니다.',
+                  explain: '편집 모드를 켠 후의 작업만 Undo할 수 있습니다. 편집 모드를 껐다 켜면 이전 기록은 사라집니다.',
+                  fix: '편집 모드를 유지한 채로 작업하세요. 중요한 변경 전에는 먼저 저장(Ctrl+S)하는 것을 권장합니다.' }
+              ]
+            }
+          };
+
+          // Enhanced notify with "왜?" button for errors
+          var _origNotify = Editor.notify;
+          Editor.notify = function (msg, type) {
+            _origNotify.call(Editor, msg, type);
+            if (type === 'error' || /fail|error/i.test(msg)) {
+              showErrorHelp(msg);
+            }
+          };
+
+          function showErrorHelp(errorMsg) {
+            // Find matching error category
+            var matched = null;
+            Object.keys(ERROR_DB).forEach(function (key) {
+              if (ERROR_DB[key].pattern.test(errorMsg) && !matched) matched = ERROR_DB[key];
+            });
+            if (!matched) return;
+
+            // Create "왜?" floating button
+            var whyBtn = document.createElement('button');
+            whyBtn.setAttribute('data-editor', 'true');
+            whyBtn.textContent = '왜?';
+            Object.assign(whyBtn.style, {
+              position: 'fixed', bottom: '72px', left: '50%', transform: 'translateX(-50%)',
+              background: '#fbbf24', color: '#1e293b', border: 'none', borderRadius: '20px',
+              padding: '6px 16px', fontSize: '0.85rem', fontWeight: '700', cursor: 'pointer',
+              zIndex: '10002', boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+              fontFamily: 'var(--f-sans)', transition: 'all 0.2s', opacity: '0'
+            });
+            document.body.appendChild(whyBtn);
+            requestAnimationFrame(function () { whyBtn.style.opacity = '1'; });
+
+            whyBtn.addEventListener('click', function () {
+              whyBtn.remove();
+              showDiagOverlay(matched, errorMsg);
+            });
+
+            // Auto-remove after 5s
+            setTimeout(function () {
+              whyBtn.style.opacity = '0';
+              setTimeout(function () { if (whyBtn.parentNode) whyBtn.remove(); }, 300);
+            }, 5000);
+          }
+
+          function showDiagOverlay(errorInfo, errorMsg) {
+            var overlay = document.createElement('div');
+            overlay.setAttribute('data-editor', 'true');
+            Object.assign(overlay.style, {
+              position: 'fixed', inset: '0', background: 'rgba(0,0,0,0.5)', zIndex: '10010',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontFamily: 'var(--f-sans)', opacity: '0', transition: 'opacity 0.2s'
+            });
+
+            var card = document.createElement('div');
+            Object.assign(card.style, {
+              background: '#fff', borderRadius: '16px', maxWidth: '480px', width: '90%',
+              boxShadow: '0 20px 60px rgba(0,0,0,0.3)', overflow: 'hidden'
+            });
+
+            // Header
+            var header = document.createElement('div');
+            Object.assign(header.style, {
+              background: '#dc2626', color: '#fff', padding: '16px 20px',
+              fontSize: '1.1rem', fontWeight: '700'
+            });
+            header.textContent = errorInfo.title;
+            card.appendChild(header);
+
+            // Body
+            var body = document.createElement('div');
+            Object.assign(body.style, { padding: '20px' });
+
+            errorInfo.causes.forEach(function (cause) {
+              if (!cause.check()) return;
+              // Why section
+              var whySection = document.createElement('div');
+              Object.assign(whySection.style, { marginBottom: '16px' });
+              var whyLabel = document.createElement('div');
+              Object.assign(whyLabel.style, { fontSize: '0.75rem', fontWeight: '700', color: '#dc2626', marginBottom: '4px', textTransform: 'uppercase' });
+              whyLabel.textContent = '원인';
+              var whyText = document.createElement('div');
+              Object.assign(whyText.style, { fontSize: '0.9rem', color: '#1e293b', lineHeight: '1.5' });
+              whyText.textContent = cause.why;
+              whySection.appendChild(whyLabel); whySection.appendChild(whyText);
+              body.appendChild(whySection);
+
+              // Explain section
+              var explainSection = document.createElement('div');
+              Object.assign(explainSection.style, { marginBottom: '16px', background: '#f8fafc', padding: '12px', borderRadius: '8px', borderLeft: '3px solid #3b82f6' });
+              var explainLabel = document.createElement('div');
+              Object.assign(explainLabel.style, { fontSize: '0.75rem', fontWeight: '700', color: '#3b82f6', marginBottom: '4px', textTransform: 'uppercase' });
+              explainLabel.textContent = '상세 설명';
+              var explainText = document.createElement('div');
+              Object.assign(explainText.style, { fontSize: '0.85rem', color: '#334155', lineHeight: '1.6' });
+              explainText.textContent = cause.explain;
+              explainSection.appendChild(explainLabel); explainSection.appendChild(explainText);
+              body.appendChild(explainSection);
+
+              // Fix section
+              var fixSection = document.createElement('div');
+              Object.assign(fixSection.style, { background: '#f0fdf4', padding: '12px', borderRadius: '8px', borderLeft: '3px solid #059669' });
+              var fixLabel = document.createElement('div');
+              Object.assign(fixLabel.style, { fontSize: '0.75rem', fontWeight: '700', color: '#059669', marginBottom: '4px', textTransform: 'uppercase' });
+              fixLabel.textContent = '해결 방법';
+              var fixText = document.createElement('pre');
+              Object.assign(fixText.style, { fontSize: '0.85rem', color: '#1e293b', lineHeight: '1.6', whiteSpace: 'pre-wrap', margin: '0', fontFamily: 'var(--f-sans)' });
+              fixText.textContent = cause.fix;
+              fixSection.appendChild(fixLabel); fixSection.appendChild(fixText);
+              body.appendChild(fixSection);
+            });
+
+            card.appendChild(body);
+
+            // Close button
+            var closeBtn = document.createElement('button');
+            Object.assign(closeBtn.style, {
+              display: 'block', width: '100%', padding: '14px', background: '#f1f5f9',
+              border: 'none', fontSize: '0.9rem', fontWeight: '600', color: '#64748b',
+              cursor: 'pointer', borderTop: '1px solid #e2e8f0'
+            });
+            closeBtn.textContent = '닫기';
+            closeBtn.addEventListener('click', function () {
+              overlay.style.opacity = '0';
+              setTimeout(function () { overlay.remove(); }, 200);
+            });
+            card.appendChild(closeBtn);
+
+            overlay.appendChild(card);
+            overlay.addEventListener('click', function (e) {
+              if (e.target === overlay) { overlay.style.opacity = '0'; setTimeout(function () { overlay.remove(); }, 200); }
+            });
+            document.body.appendChild(overlay);
+            requestAnimationFrame(function () { overlay.style.opacity = '1'; });
+          }
+
+          // Diagnostic panel with environment checks
+          function createDiagPanel() {
+            diagPanel = document.createElement('div');
+            diagPanel.setAttribute('data-editor', 'true');
+            Object.assign(diagPanel.style, {
+              position: 'fixed', top: '54px', right: '16px', width: '320px',
+              background: '#fff', border: '1px solid #e2e8f0', borderRadius: '12px',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.15)', zIndex: '10000',
+              display: 'none', fontFamily: 'var(--f-sans)', maxHeight: '70vh', overflowY: 'auto'
+            });
+
+            var header = document.createElement('div');
+            Object.assign(header.style, {
+              padding: '14px 16px', fontWeight: '700', fontSize: '0.95rem', color: '#1e293b',
+              borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '8px'
+            });
+            header.textContent = 'Diagnostics';
+            diagPanel.appendChild(header);
+
+            var content = document.createElement('div');
+            content.id = 'diagContent';
+            content.setAttribute('data-editor', 'true');
+            Object.assign(content.style, { padding: '12px 16px' });
+            diagPanel.appendChild(content);
+
+            document.body.appendChild(diagPanel);
+          }
+
+          function runDiagnostics() {
+            var content = document.getElementById('diagContent');
+            if (!content) return;
+            content.innerHTML = '';
+
+            var checks = [
+              {
+                name: '실행 환경',
+                test: function () { return location.protocol === 'http:' && location.hostname === 'localhost'; },
+                ok: 'Dev server (localhost) — 모든 기능 사용 가능',
+                fail: 'file:// 직접 열기 — 저장/빌드 불가',
+                failTip: 'npm run serve 실행 후 localhost:3000 접속'
+              },
+              {
+                name: '편집 모드',
+                test: function () { return Editor.active; },
+                ok: '편집 모드 ON',
+                fail: '편집 모드 OFF',
+                failTip: '오른쪽 상단 ✏️ 버튼 클릭'
+              },
+              {
+                name: '히스토리',
+                test: function () { return true; },
+                ok: 'Undo ' + Editor.history.length + '건 / Redo ' + Editor.future.length + '건 (최대 50건)',
+                fail: '',
+                failTip: ''
+              },
+              {
+                name: '현재 슬라이드',
+                test: function () { return true; },
+                ok: (window.idx + 1) + ' / ' + window.total + ' 슬라이드',
+                fail: '',
+                failTip: ''
+              },
+              {
+                name: '선택된 요소',
+                test: function () { return !!Editor.selected; },
+                ok: Editor.selected ? (Editor.selected.tagName + ' — ' + ((Editor.selected.textContent || '').substring(0, 20) || '(no text)')) : '',
+                fail: '선택 없음 — 요소를 클릭하세요',
+                failTip: '슬라이드 위의 텍스트/이미지를 클릭'
+              }
+            ];
+
+            checks.forEach(function (c) {
+              var row = document.createElement('div');
+              Object.assign(row.style, {
+                padding: '10px 0', borderBottom: '1px solid #f1f5f9',
+                fontSize: '0.8rem', lineHeight: '1.5'
+              });
+              var passed = c.test();
+              var label = document.createElement('div');
+              Object.assign(label.style, { fontWeight: '600', color: '#334155', marginBottom: '2px' });
+              label.textContent = c.name;
+
+              var status = document.createElement('div');
+              Object.assign(status.style, { color: passed ? '#059669' : '#dc2626' });
+              status.textContent = (passed ? '\u2705 ' : '\u274c ') + (passed ? c.ok : c.fail);
+
+              row.appendChild(label);
+              row.appendChild(status);
+
+              if (!passed && c.failTip) {
+                var tip = document.createElement('div');
+                Object.assign(tip.style, {
+                  marginTop: '4px', padding: '6px 8px', background: '#fef3c7',
+                  borderRadius: '4px', fontSize: '0.75rem', color: '#92400e'
+                });
+                tip.textContent = 'Tip: ' + c.failTip;
+                row.appendChild(tip);
+              }
+              content.appendChild(row);
+            });
+
+            // Keyboard shortcuts reference
+            var kbSection = document.createElement('div');
+            Object.assign(kbSection.style, { padding: '12px 0 4px', borderTop: '1px solid #e2e8f0', marginTop: '8px' });
+            var kbTitle = document.createElement('div');
+            Object.assign(kbTitle.style, { fontWeight: '700', fontSize: '0.8rem', color: '#334155', marginBottom: '8px' });
+            kbTitle.textContent = 'Keyboard Shortcuts';
+            kbSection.appendChild(kbTitle);
+
+            var shortcuts = [
+              ['Ctrl+Z', 'Undo (되돌리기)'],
+              ['Ctrl+Y', 'Redo (다시 실행)'],
+              ['Ctrl+S', 'Save (저장)'],
+              ['Ctrl+C', 'Copy element (요소 복사)'],
+              ['Ctrl+V', 'Paste element (요소 붙여넣기)'],
+              ['Ctrl+D', 'Duplicate (요소 복제)'],
+              ['Ctrl+B/I/U', 'Bold / Italic / Underline'],
+              ['Delete', 'Delete element (요소 삭제)'],
+              ['Escape', 'Deselect / Exit edit mode']
+            ];
+            shortcuts.forEach(function (s) {
+              var r = document.createElement('div');
+              Object.assign(r.style, { display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', padding: '3px 0' });
+              var key = document.createElement('kbd');
+              Object.assign(key.style, { background: '#f1f5f9', padding: '2px 6px', borderRadius: '3px', fontFamily: 'monospace', fontSize: '0.7rem', color: '#334155' });
+              key.textContent = s[0];
+              var desc = document.createElement('span');
+              Object.assign(desc.style, { color: '#64748b' });
+              desc.textContent = s[1];
+              r.appendChild(key); r.appendChild(desc);
+              kbSection.appendChild(r);
+            });
+            content.appendChild(kbSection);
+          }
+
+          function toggleDiagPanel() {
+            isOpen = !isOpen;
+            if (diagPanel) {
+              diagPanel.style.display = isOpen ? 'block' : 'none';
+              if (isOpen) runDiagnostics();
+            }
+          }
+
+          Editor.registerModule('diagnostics', {
+            init: function () {
+              createDiagPanel();
+              // Add "?" button to toolbar
+              var toolbarRight = document.getElementById('toolbarRight');
+              if (toolbarRight) {
+                var sep = document.createElement('div');
+                sep.setAttribute('data-editor', 'true');
+                Object.assign(sep.style, { width: '1px', height: '24px', background: 'rgba(255,255,255,0.15)', margin: '0 8px' });
+
+                diagBtn = document.createElement('button');
+                diagBtn.setAttribute('data-editor', 'true');
+                diagBtn.innerHTML = '?';
+                diagBtn.title = 'Diagnostics & Help (진단 도구)';
+                Object.assign(diagBtn.style, {
+                  minWidth: '36px', height: '36px', background: 'transparent', border: 'none',
+                  color: '#fbbf24', borderRadius: '6px', fontSize: '1.1rem', fontWeight: '800',
+                  cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  padding: '0 8px', transition: 'background 0.15s'
+                });
+                diagBtn.addEventListener('mouseenter', function () { diagBtn.style.background = 'rgba(255,255,255,0.1)'; });
+                diagBtn.addEventListener('mouseleave', function () { diagBtn.style.background = 'transparent'; });
+                diagBtn.addEventListener('click', toggleDiagPanel);
+                toolbarRight.appendChild(sep);
+                toolbarRight.appendChild(diagBtn);
+              }
+            },
+            activate: function () {},
+            deactivate: function () {
+              isOpen = false;
+              if (diagPanel) diagPanel.style.display = 'none';
+            }
+          });
+        })();
+    </script>
 </body>
 </html>

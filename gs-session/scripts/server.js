@@ -155,10 +155,7 @@ function insertImageIntoSlide(html, filename, position) {
   }
 
   // "center" — insert before closing </section>
-  return html.replace(
-    /(<\/section>)/,
-    `  ${imgTag}\n$1`,
-  );
+  return html.replace(/(<\/section>)/, `  ${imgTag}\n$1`);
 }
 
 function rebuildProject() {
@@ -178,10 +175,29 @@ function sendJSON(res, statusCode, data) {
 // ---------- Editor UI injection ----------
 
 const EDITOR_UI_HTML = `
-<!-- Image Upload Editor UI (injected by server) -->
+<!-- Editor + Image Upload UI (injected by server) -->
 <style>
-  #img-upload-btn{position:fixed;bottom:24px;right:24px;z-index:99999;width:52px;height:52px;border-radius:50%;background:#1a1a2e;border:2px solid rgba(212,165,116,.5);color:#d4a574;font-weight:700;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 20px rgba(0,0,0,.5);transition:all .2s;}
-  #img-upload-btn:hover{background:#2a2a3e;transform:scale(1.1);}
+  /* ═══ EDIT TOOLBAR ═══ */
+  #edit-toolbar{position:fixed;top:0;left:0;right:0;z-index:99998;height:44px;background:#1a1a2e;border-bottom:1px solid rgba(212,165,116,.3);display:none;align-items:center;padding:0 16px;gap:10px;font-family:system-ui,sans-serif;}
+  #edit-toolbar.active{display:flex;}
+  #edit-toolbar button{padding:6px 14px;border-radius:6px;border:none;cursor:pointer;font-size:12px;font-weight:600;transition:all .15s;}
+  #edit-toolbar .tb-save{background:#d4a574;color:#111;}
+  #edit-toolbar .tb-save:hover{background:#e0b584;}
+  #edit-toolbar .tb-save:disabled{opacity:.4;cursor:not-allowed;}
+  #edit-toolbar .tb-cancel{background:#333;color:#ccc;}
+  #edit-toolbar .tb-cancel:hover{background:#444;}
+  #edit-toolbar .tb-label{color:#999;font-size:12px;margin-left:auto;}
+  #edit-toolbar .tb-status{color:#4dc9c4;font-size:12px;min-width:80px;text-align:right;}
+  body.edit-mode .slide{padding-top:56px !important;}
+  body.edit-mode section.slide [contenteditable]{outline:1px dashed rgba(212,165,116,.3);outline-offset:2px;cursor:text;border-radius:4px;transition:outline-color .2s;}
+  body.edit-mode section.slide [contenteditable]:hover{outline-color:rgba(212,165,116,.5);}
+  body.edit-mode section.slide [contenteditable]:focus{outline-color:#d4a574;outline-style:solid;background:rgba(212,165,116,.04);}
+
+  /* ═══ BOTTOM BUTTONS ═══ */
+  #editor-btns{position:fixed;bottom:24px;right:24px;z-index:99999;display:flex;gap:8px;}
+  #edit-toggle-btn,#img-upload-btn{width:52px;height:52px;border-radius:50%;background:#1a1a2e;border:2px solid rgba(212,165,116,.5);color:#d4a574;font-weight:700;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 20px rgba(0,0,0,.5);transition:all .2s;}
+  #edit-toggle-btn:hover,#img-upload-btn:hover{background:#2a2a3e;transform:scale(1.1);}
+  #edit-toggle-btn.active{background:#d4a574;color:#111;border-color:#d4a574;}
   #img-modal-overlay{display:none;position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);align-items:center;justify-content:center;}
   #img-modal-overlay.active{display:flex;}
   #img-modal{background:#1a1a2e;border:1px solid rgba(212,165,116,.3);border-radius:12px;padding:28px;width:420px;max-width:90vw;max-height:85vh;overflow-y:auto;color:#e0e0e0;font-family:system-ui,sans-serif;}
@@ -211,7 +227,19 @@ const EDITOR_UI_HTML = `
   #drag-overlay .inner{border:3px dashed #d4a574;border-radius:16px;padding:60px 80px;text-align:center;color:#d4a574;font-size:22px;font-weight:700;font-family:system-ui,sans-serif;}
 </style>
 
-<button id="img-upload-btn" title="Upload image">IMG</button>
+<!-- Edit Toolbar (top) -->
+<div id="edit-toolbar">
+  <button class="tb-save" id="edit-save" disabled>Save</button>
+  <button class="tb-cancel" id="edit-discard">Discard</button>
+  <span class="tb-label">Editing slide <span id="edit-slide-num">1</span></span>
+  <span class="tb-status" id="edit-status"></span>
+</div>
+
+<!-- Bottom buttons -->
+<div id="editor-btns">
+  <button id="edit-toggle-btn" title="Toggle edit mode">EDIT</button>
+  <button id="img-upload-btn" title="Upload image">IMG</button>
+</div>
 
 <div id="img-modal-overlay">
   <div id="img-modal">
@@ -443,6 +471,201 @@ const EDITOR_UI_HTML = `
   });
 })();
 </script>
+
+<!-- ═══ EDIT MODE SCRIPT ═══ -->
+<script>
+(function(){
+  var editBtn = document.getElementById('edit-toggle-btn');
+  var toolbar = document.getElementById('edit-toolbar');
+  var saveBtn = document.getElementById('edit-save');
+  var discardBtn = document.getElementById('edit-discard');
+  var slideNumEl = document.getElementById('edit-slide-num');
+  var statusEl = document.getElementById('edit-status');
+  var isEditing = false;
+  var dirty = false;
+  var originalHTML = {};
+
+  function getSlides() { return document.querySelectorAll('section.slide'); }
+
+  function getCurrentSlideIndex() {
+    var slides = getSlides();
+    for (var i = 0; i < slides.length; i++) {
+      if (slides[i].classList.contains('active')) return i;
+    }
+    return 0;
+  }
+
+  function makeEditable(slide) {
+    var targets = slide.querySelectorAll('h1,h2,h3,p,span.gc-t,span.gc-d,span.gc-n,div.gc-t,div.gc-d,div.gc-n,div.ni-t,div.ni-d,div.vs-item,div.rc-t,div.rc-d,strong');
+    targets.forEach(function(el) {
+      if (el.closest('[contenteditable]')) return;
+      if (el.tagName === 'SPAN' && el.parentElement.hasAttribute('contenteditable')) return;
+      el.setAttribute('contenteditable', 'true');
+      el.setAttribute('spellcheck', 'false');
+    });
+  }
+
+  function removeEditable(slide) {
+    var editables = slide.querySelectorAll('[contenteditable]');
+    editables.forEach(function(el) {
+      el.removeAttribute('contenteditable');
+      el.removeAttribute('spellcheck');
+    });
+  }
+
+  function enterEditMode() {
+    isEditing = true;
+    dirty = false;
+    document.body.classList.add('edit-mode');
+    editBtn.classList.add('active');
+    editBtn.textContent = 'EXIT';
+    toolbar.classList.add('active');
+    saveBtn.disabled = true;
+    statusEl.textContent = '';
+
+    var slides = getSlides();
+    slides.forEach(function(s, i) {
+      originalHTML[i] = s.outerHTML;
+      makeEditable(s);
+    });
+
+    updateSlideNum();
+    document.addEventListener('input', onInput);
+    document.addEventListener('keydown', onKeydown);
+  }
+
+  function exitEditMode(discard) {
+    if (dirty && !discard) {
+      if (!confirm('Save changes before exiting?')) {
+        if (!confirm('Discard changes?')) return;
+      } else {
+        saveAll();
+        return;
+      }
+    }
+
+    if (discard && dirty) {
+      location.reload();
+      return;
+    }
+
+    isEditing = false;
+    dirty = false;
+    document.body.classList.remove('edit-mode');
+    editBtn.classList.remove('active');
+    editBtn.textContent = 'EDIT';
+    toolbar.classList.remove('active');
+    originalHTML = {};
+
+    var slides = getSlides();
+    slides.forEach(function(s) { removeEditable(s); });
+
+    document.removeEventListener('input', onInput);
+    document.removeEventListener('keydown', onKeydown);
+  }
+
+  function onInput(e) {
+    if (e.target.hasAttribute && e.target.hasAttribute('contenteditable')) {
+      dirty = true;
+      saveBtn.disabled = false;
+      statusEl.textContent = 'unsaved';
+      statusEl.style.color = '#d4a574';
+    }
+  }
+
+  function onKeydown(e) {
+    if (e.ctrlKey || e.metaKey) {
+      if (e.key === 's') {
+        e.preventDefault();
+        if (dirty) saveAll();
+      }
+      if (e.key === 'z') {
+        e.preventDefault();
+        document.execCommand('undo');
+      }
+      if (e.key === 'y') {
+        e.preventDefault();
+        document.execCommand('redo');
+      }
+    }
+  }
+
+  function updateSlideNum() {
+    slideNumEl.textContent = (getCurrentSlideIndex() + 1);
+  }
+
+  function saveAll() {
+    saveBtn.disabled = true;
+    statusEl.textContent = 'saving...';
+    statusEl.style.color = '#999';
+
+    var slides = getSlides();
+    var promises = [];
+
+    slides.forEach(function(s, i) {
+      if (originalHTML[i] && s.outerHTML !== originalHTML[i]) {
+        var clone = s.cloneNode(true);
+        var editables = clone.querySelectorAll('[contenteditable]');
+        editables.forEach(function(el) {
+          el.removeAttribute('contenteditable');
+          el.removeAttribute('spellcheck');
+        });
+
+        promises.push(
+          fetch('/api/save-slide', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ slideIndex: i, html: clone.outerHTML })
+          }).then(function(r) { return r.json(); })
+        );
+      }
+    });
+
+    if (promises.length === 0) {
+      statusEl.textContent = 'no changes';
+      statusEl.style.color = '#999';
+      return;
+    }
+
+    Promise.all(promises).then(function(results) {
+      var ok = results.every(function(r) { return r.ok; });
+      if (ok) {
+        dirty = false;
+        statusEl.textContent = 'saved';
+        statusEl.style.color = '#4dc9c4';
+        slides.forEach(function(s, i) { originalHTML[i] = s.outerHTML; });
+        setTimeout(function() { if (!dirty) statusEl.textContent = ''; }, 2000);
+      } else {
+        statusEl.textContent = 'save failed';
+        statusEl.style.color = '#e74c3c';
+        saveBtn.disabled = false;
+      }
+    }).catch(function() {
+      statusEl.textContent = 'save error';
+      statusEl.style.color = '#e74c3c';
+      saveBtn.disabled = false;
+    });
+  }
+
+  editBtn.addEventListener('click', function() {
+    if (isEditing) exitEditMode(false);
+    else enterEditMode();
+  });
+
+  saveBtn.addEventListener('click', saveAll);
+
+  discardBtn.addEventListener('click', function() {
+    exitEditMode(true);
+  });
+
+  document.addEventListener('keydown', function(e) {
+    if (!isEditing) return;
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+      setTimeout(updateSlideNum, 100);
+    }
+  });
+})();
+</script>
 `;
 
 // ---------- MIME types ----------
@@ -521,9 +744,11 @@ const server = http.createServer((req, res) => {
       collectBody(req, MAX_BODY_SIZE, (err, body) => {
         if (err) return sendJSON(res, 413, { error: err.message });
         try {
-          const { existingImage, slideIndex, position: pos } = JSON.parse(
-            body.toString("utf8"),
-          );
+          const {
+            existingImage,
+            slideIndex,
+            position: pos,
+          } = JSON.parse(body.toString("utf8"));
           return handleImageInsert(
             res,
             existingImage,
