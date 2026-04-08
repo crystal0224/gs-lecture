@@ -67,6 +67,21 @@ html,body{width:100vw;height:100vh;overflow:hidden;font-family:'Pretendard Varia
 
 /* ═══ LAYOUTS ═══ */
 .slide.c{display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:56px 8vw;}
+/* Top-anchored: title top, content fills remaining space */
+.slide.ta{display:flex;flex-direction:column;align-items:center;text-align:center;padding:9vh 5vw 40px;}
+.slide.ta h2{margin-bottom:4vh;}
+.slide.ta .content-area{flex:1;display:flex;flex-direction:column;justify-content:center;width:100%;max-width:1100px;gap:20px;}
+.slide.ta .vsgrid{max-width:1100px;gap:28px;margin:0 auto;flex:1;}
+.slide.ta .vs-side{padding:32px 32px;display:flex;flex-direction:column;gap:16px;}
+.slide.ta .vs-item{font-size:clamp(20px,2vw,26px);line-height:1.75;margin-bottom:8px;}
+.slide.ta .vs-item .vi-label{display:block;font-size:clamp(14px,1.2vw,16px);font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--g300);margin-bottom:4px;}
+.slide.ta .vs-item .vi-main{display:block;font-weight:600;color:var(--g700);}
+.slide.ta .vs-item .vi-sub{display:block;font-size:clamp(15px,1.3vw,18px);color:var(--g400);margin-top:4px;line-height:1.5;}
+.slide.ta .takeaway{font-size:clamp(22px,2.4vw,32px);font-weight:700;color:var(--white);margin-top:auto;padding-top:3vh;position:relative;z-index:1;}
+.slide.ta .takeaway span{color:var(--copper);}
+.slide.ta .scene{max-width:1100px;width:100%;margin:0 auto;}
+.slide.ta .grid3{max-width:1100px;}
+.slide.ta .lead{max-width:1100px;}
 .slide.sp{display:grid;grid-template-columns:1fr 1fr;padding:0;}
 .slide.sp .lt,.slide.sp .rt{display:flex;flex-direction:column;justify-content:center;padding:52px 5vw;position:relative;z-index:1;}
 .slide.sp .lt{align-items:flex-start;text-align:left;}

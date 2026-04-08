@@ -1,14 +1,12 @@
 
     </div>
 
-    <div class="nav">
-        <span class="pg"><span id="cur">1</span> / <span id="tot">-</span></span>
-        <button onclick="go(-1)" aria-label="이전">&#8592;</button>
-        <button onclick="go(1)" aria-label="다음">&#8594;</button>
-    </div>
+    <div class="progress" id="progressBar"></div>
+    <div class="counter"><span id="cur">1</span> / <span id="tot">-</span></div>
+    <div class="hint">← → keys to navigate</div>
 
     <script>
-        let slides = document.querySelectorAll('.s');
+        let slides = document.querySelectorAll('.slide');
         let total = slides.length;
         let idx = 0;
         let prevIdx = 0;
@@ -962,7 +960,7 @@
           var ANIM_CSS = '[data-anim="fadeIn"]{animation:editorFadeIn .6s ease both}@keyframes editorFadeIn{from{opacity:0}to{opacity:1}}[data-anim="slideLeft"]{animation:editorSlideLeft .6s ease both}@keyframes editorSlideLeft{from{opacity:0;transform:translateX(60px)}to{opacity:1;transform:translateX(0)}}[data-anim="slideRight"]{animation:editorSlideRight .6s ease both}@keyframes editorSlideRight{from{opacity:0;transform:translateX(-60px)}to{opacity:1;transform:translateX(0)}}[data-anim="scaleUp"]{animation:editorScaleUp .6s ease both}@keyframes editorScaleUp{from{opacity:0;transform:scale(.7)}to{opacity:1;transform:scale(1)}}[data-anim="bounce"]{animation:editorBounce .8s ease both}@keyframes editorBounce{0%{opacity:0;transform:translateY(40px)}50%{transform:translateY(-10px)}70%{transform:translateY(5px)}100%{opacity:1;transform:translateY(0)}}';
 
           function refreshSlides() {
-            window.slides = document.querySelectorAll('.s'); window.total = window.slides.length;
+            window.slides = document.querySelectorAll('.slide'); window.total = window.slides.length;
             var totEl = document.getElementById('tot'); if (totEl) totEl.textContent = window.total;
             var curEl = document.getElementById('cur'); if (curEl) curEl.textContent = window.idx+1;
           }
@@ -981,7 +979,7 @@
             document.body.appendChild(slidePanel);
           }
           function addNewSlide() {
-            var allSlides = document.querySelectorAll('.s');
+            var allSlides = document.querySelectorAll('.slide');
             var lastSlide = allSlides[allSlides.length - 1];
             if (!lastSlide) return;
             Editor.pushHistory('Add new slide');
@@ -1008,7 +1006,7 @@
             addBtn.addEventListener('mouseleave', function () { addBtn.style.borderColor = '#4b5563'; addBtn.style.color = '#9ca3af'; });
             addBtn.addEventListener('click', function () { addNewSlide(); });
             slidePanel.appendChild(addBtn);
-            var allSlides = document.querySelectorAll('.s');
+            var allSlides = document.querySelectorAll('.slide');
             for (var i=0; i<allSlides.length; i++) {
               (function (index) {
                 var slide = allSlides[index];
@@ -1047,7 +1045,7 @@
             }
           }
           function duplicateSlide(index) {
-            var allSlides = document.querySelectorAll('.s'); if (index<0||index>=allSlides.length) return;
+            var allSlides = document.querySelectorAll('.slide'); if (index<0||index>=allSlides.length) return;
             Editor.pushHistory('Duplicate slide '+(index+1));
             var clone = allSlides[index].cloneNode(true); clone.classList.remove('active'); clone.removeAttribute('id');
             var eds = clone.querySelectorAll('[data-editor="true"]'); for (var i=0;i<eds.length;i++) eds[i].remove();
@@ -1056,7 +1054,7 @@
             refreshSlides(); navigateTo(index+1); Editor.notify('Slide duplicated');
           }
           function deleteSlide(index) {
-            var allSlides = document.querySelectorAll('.s');
+            var allSlides = document.querySelectorAll('.slide');
             if (allSlides.length<=1) { Editor.notify('Cannot delete the last slide'); return; }
             if (!confirm('Delete slide '+(index+1)+'?')) return;
             Editor.pushHistory('Delete slide '+(index+1));
@@ -1064,10 +1062,10 @@
             navigateTo(Math.min(index, window.total-1)); Editor.notify('Slide deleted');
           }
           function reorderSlide(from, to) {
-            var allSlides = document.querySelectorAll('.s'); if (from<0||from>=allSlides.length) return;
+            var allSlides = document.querySelectorAll('.slide'); if (from<0||from>=allSlides.length) return;
             Editor.pushHistory('Reorder slide '+(from+1));
             var el = allSlides[from]; var parent = el.parentNode; parent.removeChild(el);
-            var updated = document.querySelectorAll('.s');
+            var updated = document.querySelectorAll('.slide');
             var ins = to>from?to-1:to; ins = Math.max(0, Math.min(updated.length, ins));
             if (ins>=updated.length) { var last=updated[updated.length-1]; if (last.nextSibling) parent.insertBefore(el, last.nextSibling); else parent.appendChild(el); }
             else parent.insertBefore(el, updated[ins]);

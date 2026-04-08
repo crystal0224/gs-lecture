@@ -132,6 +132,19 @@ function buildImageTag(filename, position) {
 }
 
 function insertImageIntoSlide(html, filename, position) {
+  const src = `../assets/${filename}`;
+
+  // "placeholder" — find and replace placeholder divs containing "이미지 영역"
+  if (position === "placeholder") {
+    const placeholderRegex = /<div[^>]*>[^<]*이미지 영역[^<]*<\/div>/;
+    if (placeholderRegex.test(html)) {
+      const imgEl = `<div style="border-radius:var(--radius);overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,.5);"><img src="${src}" style="width:100%;display:block;border-radius:var(--radius);"></div>`;
+      return html.replace(placeholderRegex, imgEl);
+    }
+    // No placeholder found, fall back to center
+    position = "center";
+  }
+
   const imgTag = buildImageTag(filename, position);
 
   if (position === "background") {
@@ -175,29 +188,10 @@ function sendJSON(res, statusCode, data) {
 // ---------- Editor UI injection ----------
 
 const EDITOR_UI_HTML = `
-<!-- Editor + Image Upload UI (injected by server) -->
+<!-- Image Upload UI (injected by server) -->
 <style>
-  /* ═══ EDIT TOOLBAR ═══ */
-  #edit-toolbar{position:fixed;top:0;left:0;right:0;z-index:99998;height:44px;background:#1a1a2e;border-bottom:1px solid rgba(212,165,116,.3);display:none;align-items:center;padding:0 16px;gap:10px;font-family:system-ui,sans-serif;}
-  #edit-toolbar.active{display:flex;}
-  #edit-toolbar button{padding:6px 14px;border-radius:6px;border:none;cursor:pointer;font-size:12px;font-weight:600;transition:all .15s;}
-  #edit-toolbar .tb-save{background:#d4a574;color:#111;}
-  #edit-toolbar .tb-save:hover{background:#e0b584;}
-  #edit-toolbar .tb-save:disabled{opacity:.4;cursor:not-allowed;}
-  #edit-toolbar .tb-cancel{background:#333;color:#ccc;}
-  #edit-toolbar .tb-cancel:hover{background:#444;}
-  #edit-toolbar .tb-label{color:#999;font-size:12px;margin-left:auto;}
-  #edit-toolbar .tb-status{color:#4dc9c4;font-size:12px;min-width:80px;text-align:right;}
-  body.edit-mode .slide{padding-top:56px !important;}
-  body.edit-mode section.slide [contenteditable]{outline:1px dashed rgba(212,165,116,.3);outline-offset:2px;cursor:text;border-radius:4px;transition:outline-color .2s;}
-  body.edit-mode section.slide [contenteditable]:hover{outline-color:rgba(212,165,116,.5);}
-  body.edit-mode section.slide [contenteditable]:focus{outline-color:#d4a574;outline-style:solid;background:rgba(212,165,116,.04);}
-
-  /* ═══ BOTTOM BUTTONS ═══ */
-  #editor-btns{position:fixed;bottom:24px;right:24px;z-index:99999;display:flex;gap:8px;}
-  #edit-toggle-btn,#img-upload-btn{width:52px;height:52px;border-radius:50%;background:#1a1a2e;border:2px solid rgba(212,165,116,.5);color:#d4a574;font-weight:700;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 20px rgba(0,0,0,.5);transition:all .2s;}
-  #edit-toggle-btn:hover,#img-upload-btn:hover{background:#2a2a3e;transform:scale(1.1);}
-  #edit-toggle-btn.active{background:#d4a574;color:#111;border-color:#d4a574;}
+  #img-upload-btn{position:fixed;bottom:24px;right:24px;z-index:99999;width:52px;height:52px;border-radius:50%;background:#1a1a2e;border:2px solid rgba(212,165,116,.5);color:#d4a574;font-weight:700;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 20px rgba(0,0,0,.5);transition:all .2s;}
+  #img-upload-btn:hover{background:#2a2a3e;transform:scale(1.1);}
   #img-modal-overlay{display:none;position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);align-items:center;justify-content:center;}
   #img-modal-overlay.active{display:flex;}
   #img-modal{background:#1a1a2e;border:1px solid rgba(212,165,116,.3);border-radius:12px;padding:28px;width:420px;max-width:90vw;max-height:85vh;overflow-y:auto;color:#e0e0e0;font-family:system-ui,sans-serif;}
@@ -227,19 +221,7 @@ const EDITOR_UI_HTML = `
   #drag-overlay .inner{border:3px dashed #d4a574;border-radius:16px;padding:60px 80px;text-align:center;color:#d4a574;font-size:22px;font-weight:700;font-family:system-ui,sans-serif;}
 </style>
 
-<!-- Edit Toolbar (top) -->
-<div id="edit-toolbar">
-  <button class="tb-save" id="edit-save" disabled>Save</button>
-  <button class="tb-cancel" id="edit-discard">Discard</button>
-  <span class="tb-label">Editing slide <span id="edit-slide-num">1</span></span>
-  <span class="tb-status" id="edit-status"></span>
-</div>
-
-<!-- Bottom buttons -->
-<div id="editor-btns">
-  <button id="edit-toggle-btn" title="Toggle edit mode">EDIT</button>
-  <button id="img-upload-btn" title="Upload image">IMG</button>
-</div>
+<button id="img-upload-btn" title="Upload image">IMG</button>
 
 <div id="img-modal-overlay">
   <div id="img-modal">
@@ -256,6 +238,7 @@ const EDITOR_UI_HTML = `
 
     <label>Position</label>
     <select id="img-position">
+      <option value="placeholder">Placeholder (replace 이미지 영역)</option>
       <option value="center">Center</option>
       <option value="background">Background (overlay)</option>
       <option value="left">Left</option>
@@ -472,11 +455,12 @@ const EDITOR_UI_HTML = `
 })();
 </script>
 
-<!-- ═══ EDIT MODE SCRIPT ═══ -->
-<script>
-(function(){
-  var editBtn = document.getElementById('edit-toggle-btn');
-  var toolbar = document.getElementById('edit-toolbar');
+`;
+
+// Editor UI is provided by footer.html — server only injects image upload UI above.
+// Dead code removed — edit script was here but is now handled by footer.html editor.
+
+const _UNUSED = `
   var saveBtn = document.getElementById('edit-save');
   var discardBtn = document.getElementById('edit-discard');
   var slideNumEl = document.getElementById('edit-slide-num');
@@ -933,7 +917,13 @@ function handleImageInsert(res, filename, slideIndex, pos) {
     });
   }
 
-  const validPositions = ["background", "left", "right", "center"];
+  const validPositions = [
+    "background",
+    "left",
+    "right",
+    "center",
+    "placeholder",
+  ];
   if (!validPositions.includes(pos)) {
     return sendJSON(res, 400, {
       error: `Invalid position: ${pos}. Allowed: ${validPositions.join(", ")}`,
