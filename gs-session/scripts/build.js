@@ -70,7 +70,7 @@ if (fs.existsSync(outputFile)) {
   }
 }
 
-fs.writeFileSync(outputFile, output);
+fs.writeFileSync(outputFile, output, "utf8");
 
 console.log(`\n✨ Built successfully!`);
 console.log(`   Output: ${outputFile}`);

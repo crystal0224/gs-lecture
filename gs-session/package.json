@@ -6,9 +6,13 @@
     "build": "node scripts/build.js",
     "dev": "npm run build && open dist/lecture.html",
     "serve": "npm run build && node scripts/server.js",
-    "watch": "nodemon --watch slides --exec 'npm run build'"
+    "watch": "nodemon --watch slides --exec 'npm run build'",
+    "pdf": "node scripts/export-pdf.js"
   },
   "devDependencies": {
     "nodemon": "^3.0.0"
+  },
+  "dependencies": {
+    "playwright": "^1.59.1"
   }
 }

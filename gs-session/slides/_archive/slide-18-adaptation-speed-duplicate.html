@@ -1,0 +1,73 @@
+        <section class="slide c orb-b" data-n="BCG가 2025년에 조사한 데이터입니다. 75%가 AI를 최우선 과제로 꼽지만, 실제로 효과를 본 건 25%에 불과합니다. 60%는 효과가 아예 없었어요. 더 놀라운 건 McElheran의 제조업 연구입니다. AI 도입 후 생산성이 초기에 오히려 1.33% 하락합니다. 4년 이상 워크플로우를 재설계한 곳만 회복했어요. 이게 J커브입니다.">
+                  <div class="layer-mid" style="background:radial-gradient(ellipse at 70% 50%,rgba(212,165,116,0.22) 0%,transparent 45%);"></div>
+                  <div class="tag">J커브</div>
+                  <div class="slide-section">Data</div>
+                  <h2><span class="em">75%</span>가 도입했지만<br><span class="em">60%</span>는 효과 zero</h2>
+        
+                  <!-- 기업 비율 스탯 (y축 성과와 구분) -->
+                  <div style="display:flex;justify-content:center;gap:20px;max-width:720px;margin:20px auto 0;">
+                    <div style="background:rgba(212,165,116,.05);border:1px solid rgba(212,165,116,.2);border-radius:var(--radius);padding:12px 22px;display:flex;align-items:center;gap:14px;">
+                      <div style="font-size:clamp(22px,2vw,30px);font-weight:800;color:var(--copper);">75%</div>
+                      <div style="font-size:clamp(12px,1vw,14px);color:var(--g400);line-height:1.4;text-align:left;">AI를 최우선 과제로<br>꼽은 기업</div>
+                    </div>
+                    <div style="background:rgba(239,68,68,.05);border:1px solid rgba(239,68,68,.2);border-radius:var(--radius);padding:12px 22px;display:flex;align-items:center;gap:14px;">
+                      <div style="font-size:clamp(22px,2vw,30px);font-weight:800;color:#FCA5A5;">60%</div>
+                      <div style="font-size:clamp(12px,1vw,14px);color:var(--g400);line-height:1.4;text-align:left;">도입했지만<br>효과 없는 기업</div>
+                    </div>
+                  </div>
+        
+                  <!-- J커브 SVG 그래프: 두 갈래 -->
+                  <div style="width:90%;max-width:780px;margin:28px auto 0;position:relative;z-index:1;">
+                    <svg viewBox="0 0 780 300" fill="none" xmlns="http://www.w3.org/2000/svg" style="width: 100%;">
+                      <defs>
+                        <linearGradient id="jc-rise" x1="380" y1="0" x2="700" y2="0" gradientUnits="userSpaceOnUse">
+                          <stop offset="0%" stop-color="#4DC9C4" stop-opacity=".6"></stop>
+                          <stop offset="100%" stop-color="#4DC9C4"></stop>
+                        </linearGradient>
+                        <linearGradient id="jc-flat" x1="380" y1="0" x2="700" y2="0" gradientUnits="userSpaceOnUse">
+                          <stop offset="0%" stop-color="#EF4444" stop-opacity=".6"></stop>
+                          <stop offset="100%" stop-color="#EF4444" stop-opacity=".4"></stop>
+                        </linearGradient>
+                        <radialGradient id="glow-top" cx="660" cy="45" r="80" gradientUnits="userSpaceOnUse">
+                          <stop offset="0%" stop-color="rgba(77,201,196,.15)"></stop>
+                          <stop offset="100%" stop-color="transparent"></stop>
+                        </radialGradient>
+                        <radialGradient id="glow-bot" cx="660" cy="210" r="60" gradientUnits="userSpaceOnUse">
+                          <stop offset="0%" stop-color="rgba(239,68,68,.1)"></stop>
+                          <stop offset="100%" stop-color="transparent"></stop>
+                        </radialGradient>
+                      </defs>
+                      <!-- 축 -->
+                      <line x1="70" y1="255" x2="730" y2="255" stroke="rgba(255,255,255,.12)" stroke-width="1"></line>
+                      <line x1="70" y1="30" x2="70" y2="255" stroke="rgba(255,255,255,.12)" stroke-width="1"></line>
+                      <text x="400" y="285" fill="rgba(255,255,255,.25)" font-family="Inter,sans-serif" font-size="12" text-anchor="middle">시간</text>
+                      <text x="22" y="145" fill="rgba(255,255,255,.35)" font-family="Inter,sans-serif" font-size="12" text-anchor="middle" transform="rotate(-90,22,145)">생산성</text>
+                      <!-- 기준선 -->
+                      <line x1="70" y1="90" x2="730" y2="90" stroke="rgba(255,255,255,.06)" stroke-width="1" stroke-dasharray="6,6"></line>
+                      <text x="738" y="94" fill="rgba(255,255,255,.15)" font-family="Inter,sans-serif" font-size="10" text-anchor="start">도입 전</text>
+                      <!-- 도입 시점 -->
+                      <line x1="160" y1="82" x2="160" y2="260" stroke="rgba(212,165,116,.3)" stroke-width="1" stroke-dasharray="4,4"></line>
+                      <text x="160" y="275" fill="rgba(212,165,116,.5)" font-family="Inter,sans-serif" font-size="11" text-anchor="middle">AI 도입</text>
+                      <!-- 공통 하강 구간: 도입 후 성과 하락 -->
+                      <path d="M90,90 C130,90 155,90 170,95 C210,110 260,170 320,215 C340,228 355,232 370,230" stroke="rgba(212,165,116,.6)" stroke-width="2.5" stroke-linecap="round"></path>
+                      <!-- 분기점 표시 -->
+                      <circle cx="370" cy="230" r="4" fill="rgba(255,255,255,.4)"></circle>
+                      <text x="370" y="250" fill="rgba(255,255,255,.3)" font-family="Inter,sans-serif" font-size="10" text-anchor="middle">분기점</text>
+                      <!-- A: 재설계한 팀 — 상승 -->
+                      <path d="M370,230 C400,220 430,180 470,140 C510,100 560,65 640,45 C670,38 700,35 720,34" stroke="url(#jc-rise)" stroke-width="3" stroke-linecap="round"></path>
+                      <circle cx="660" cy="45" r="80" fill="url(#glow-top)"></circle>
+                      <circle cx="700" cy="36" r="5" fill="#4DC9C4" opacity=".9"></circle>
+                      <text x="700" y="24" fill="rgba(77,201,196,.9)" font-family="Inter,sans-serif" font-size="12" font-weight="700" text-anchor="middle">재설계한 팀</text>
+                      <!-- B: 얹기만 한 팀 — 바닥 횡보 -->
+                      <path d="M370,230 C400,232 440,228 480,220 C520,215 580,212 640,210 C680,209 710,208 720,208" stroke="url(#jc-flat)" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="8,4"></path>
+                      <circle cx="660" cy="210" r="60" fill="url(#glow-bot)"></circle>
+                      <circle cx="700" cy="208" r="5" fill="#EF4444" opacity=".7"></circle>
+                      <text x="700" y="198" fill="#FCA5A5" font-family="Inter,sans-serif" font-size="12" font-weight="700" text-anchor="middle">얹기만 한 팀</text>
+                      <!-- 하락 구간 라벨 -->
+                      <text x="280" y="185" fill="rgba(255,255,255,.3)" font-family="Inter,sans-serif" font-size="10" text-anchor="middle">생산성 1.33%↓</text>
+                    </svg>
+                  </div>
+                  <p class="body" style="text-align: center; margin-top: 20px; width: 761px; height: 86px;">AI 도입 후 초기 생산성 <strong style="color:var(--copper);">1.33% 하락</strong> — 워크플로우 재설계한 곳만 회복</p>
+                  <p class="point" style="text-align:center;margin-top:16px;">지금 삐걱거리는 건 정상. <span style="color:var(--copper);">멈추느냐 뚫느냐</span>가 갈림길.</p>
+                  <div class="ref">BCG (2025). AI Radar / McElheran et al. (2024). QJE</div>
+                </section>

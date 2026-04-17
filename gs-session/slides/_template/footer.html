@@ -4,6 +4,20 @@
     <div class="progress" id="progressBar"></div>
     <div class="counter"><span id="cur">1</span> / <span id="tot">-</span></div>
     <div class="hint">← → keys to navigate</div>
+    <div class="notes-hint">Shift+N = speaker notes</div>
+
+    <!-- 발표자 노트 우측 패널 -->
+    <div class="notes-panel" id="notesPanel">
+      <div class="nclose" id="notesClose">✕</div>
+      <div class="nlbl">SPEAKER NOTES</div>
+      <div class="ntitle" id="notesTitle"></div>
+      <div class="nbody" id="notesBody" contenteditable="true" style="outline:none;min-height:200px;"></div>
+      <div style="display:flex;gap:8px;margin-top:16px;padding-top:12px;border-top:1px solid rgba(255,255,255,.06);">
+        <button id="notesSave" style="flex:1;padding:10px 0;border:none;border-radius:6px;background:var(--copper);color:#0a0a0a;font-weight:700;font-size:13px;cursor:pointer;">Save Notes</button>
+        <button id="notesBuild" style="flex:1;padding:10px 0;border:none;border-radius:6px;background:rgba(77,201,196,.15);color:var(--teal);font-weight:700;font-size:13px;cursor:pointer;border:1px solid rgba(77,201,196,.3);">Build</button>
+      </div>
+      <div id="notesStatus" style="font-size:11px;color:var(--g500);margin-top:8px;text-align:center;min-height:16px;"></div>
+    </div>
 
     <script>
         let slides = document.querySelectorAll('.slide');
@@ -14,18 +28,39 @@
         // Initialize Total Count
         document.getElementById('tot').textContent = total;
 
+        function updateNotes(i) {
+            var s = slides[i];
+            var note = s.getAttribute('data-n') || '';
+            var h2 = s.querySelector('h2');
+            var title = h2 ? h2.textContent.trim() : 'Slide ' + (i + 1);
+            document.getElementById('notesTitle').textContent = title;
+            // 줄바꿈을 <br>로 변환하여 표시
+            var body = document.getElementById('notesBody');
+            body.innerHTML = '';
+            note.split('\n').forEach(function(line, idx, arr) {
+                body.appendChild(document.createTextNode(line));
+                if (idx < arr.length - 1) body.appendChild(document.createElement('br'));
+            });
+        }
+
         function show(i) {
             slides[prevIdx].classList.remove('active');
             slides[i].classList.add('active');
             prevIdx = i;
             document.getElementById('cur').textContent = i + 1;
             document.getElementById('progressBar').style.width = ((i + 1) / total * 100) + '%';
+            updateNotes(i);
         }
 
         function go(d) { idx = Math.max(0, Math.min(total - 1, idx + d)); show(idx); }
 
         // 네비게이션 핸들러
+        function isEditingNotes() {
+            var a = document.activeElement;
+            return a && a.id === 'notesBody';
+        }
         function navHandler(e) {
+            if (isEditingNotes()) return; // 노트 편집 중에는 네비게이션 차단
             if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); go(1); }
             if (e.key === 'ArrowLeft') { e.preventDefault(); go(-1); }
             if (e.key === 'ArrowDown' || e.key === 'PageDown') { e.preventDefault(); go(1); }
@@ -35,8 +70,94 @@
         }
         document.addEventListener('keydown', navHandler);
 
-        // Initialize
-        show(0);
+        // Notes toggle (Shift+N key — works in all modes)
+        var notesPanel = document.getElementById('notesPanel');
+        document.addEventListener('keydown', function(e) {
+            if (e.shiftKey && (e.key === 'n' || e.key === 'N')) {
+                e.preventDefault();
+                notesPanel.classList.toggle('open');
+                document.body.classList.toggle('notes-open');
+            }
+        });
+        document.getElementById('notesClose').addEventListener('click', function() {
+            notesPanel.classList.remove('open');
+            document.body.classList.remove('notes-open');
+        });
+
+        // Notes Save — update data-n and save to source
+        function getNotesText() {
+            var body = document.getElementById('notesBody');
+            // contenteditable의 HTML을 텍스트+줄바꿈으로 변환
+            var html = body.innerHTML;
+            // <br> → \n
+            html = html.replace(/<br\s*\/?>/gi, '\n');
+            // <div> → \n (contenteditable이 Enter를 div로 만듦)
+            html = html.replace(/<\/div><div>/gi, '\n');
+            html = html.replace(/<div>/gi, '\n');
+            html = html.replace(/<\/div>/gi, '');
+            // 나머지 태그 제거
+            html = html.replace(/<[^>]*>/g, '');
+            // HTML 엔티티 디코딩
+            var txt = document.createElement('textarea');
+            txt.innerHTML = html;
+            return txt.value.trim();
+        }
+        function saveNotes(callback) {
+            var noteText = getNotesText();
+            var slide = slides[idx];
+            slide.setAttribute('data-n', noteText);
+            var statusEl = document.getElementById('notesStatus');
+            statusEl.textContent = 'Saving...';
+            var slideClone = slide.cloneNode(true);
+            slideClone.querySelectorAll('[data-editor]').forEach(function(el) { el.remove(); });
+            slideClone.querySelectorAll('[contenteditable]').forEach(function(el) {
+                el.removeAttribute('contenteditable');
+                el.style.outline = ''; el.style.outlineOffset = ''; el.style.cursor = '';
+            });
+            slideClone.classList.remove('active');
+            slideClone.style.outline = ''; slideClone.style.outlineOffset = '';
+            var html = '        ' + slideClone.outerHTML.replace(/\n/g, '\n        ') + '\n';
+            fetch('/api/save-slide', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ slideIndex: idx, html: html })
+            }).then(function(r) { return r.json(); })
+              .then(function(d) {
+                if (d.ok) { statusEl.textContent = 'Saved: ' + d.file; if (callback) callback(); }
+                else statusEl.textContent = 'Error: ' + d.error;
+                if (!callback) setTimeout(function() { statusEl.textContent = ''; }, 3000);
+              }).catch(function() { statusEl.textContent = 'Save failed'; });
+        }
+        document.getElementById('notesSave').addEventListener('click', function() { saveNotes(); });
+
+        // Notes Build — save first, then build, then reload to same slide
+        document.getElementById('notesBuild').addEventListener('click', function() {
+            var currentIdx = idx;
+            saveNotes(function() {
+                var statusEl = document.getElementById('notesStatus');
+                statusEl.textContent = 'Building...';
+                fetch('/api/build', { method: 'POST' })
+                  .then(function(r) { return r.json(); })
+                  .then(function(d) {
+                    if (d.ok) {
+                      statusEl.textContent = 'Built! Reloading...';
+                      // Reload to same slide using hash
+                      setTimeout(function() { window.location.hash = 's' + currentIdx; location.reload(); }, 1000);
+                    } else statusEl.textContent = 'Build error: ' + d.error;
+                  }).catch(function() {
+                    statusEl.textContent = 'Build API not available';
+                    setTimeout(function() { statusEl.textContent = ''; }, 3000);
+                  });
+            });
+        });
+
+        // Initialize — restore slide position from hash
+        var hashMatch = window.location.hash.match(/^#s(\d+)$/);
+        if (hashMatch) {
+            idx = Math.min(parseInt(hashMatch[1], 10), total - 1);
+            window.location.hash = '';
+        }
+        show(idx);
 
         // ═══════════════════════════════════════════════════════════════════
         // BDAI Slide Editor — Full-Featured PPT-like Editing System
@@ -227,6 +348,26 @@
           });
           toggleBtn.addEventListener('click', function () { Editor.toggle(); });
           document.body.appendChild(toggleBtn);
+
+          // Notes button (next to edit toggle)
+          var notesBtn = document.createElement('button');
+          notesBtn.setAttribute('data-editor', 'true');
+          notesBtn.textContent = 'N';
+          notesBtn.title = 'Speaker Notes';
+          Object.assign(notesBtn.style, {
+            position:'fixed', top:'80px', right:'24px', zIndex:'9999',
+            width:'48px', height:'48px', borderRadius:'50%', border:'none',
+            background:'#1a1a1a', color:'#D4A574', boxShadow:'0 4px 16px rgba(0,0,0,0.15)',
+            fontSize:'1rem', fontWeight:'700', cursor:'pointer', transition:'all 0.2s',
+            display: isServeMode ? 'flex' : 'none', alignItems:'center', justifyContent:'center'
+          });
+          notesBtn.addEventListener('click', function () {
+            notesPanel.classList.toggle('open');
+            document.body.classList.toggle('notes-open');
+            notesBtn.style.background = notesPanel.classList.contains('open') ? '#D4A574' : '#1a1a1a';
+            notesBtn.style.color = notesPanel.classList.contains('open') ? '#0a0a0a' : '#D4A574';
+          });
+          document.body.appendChild(notesBtn);
 
           // Toolbar
           var toolbar = document.createElement('div');

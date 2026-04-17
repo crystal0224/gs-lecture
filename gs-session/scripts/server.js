@@ -683,6 +683,17 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  // ── POST /api/build ──
+  if (req.method === "POST" && req.url === "/api/build") {
+    const { execFileSync } = require("child_process");
+    try {
+      execFileSync("node", ["scripts/build.js"], { cwd: ROOT, timeout: 30000 });
+      return sendJSON(res, 200, { ok: true });
+    } catch (e) {
+      return sendJSON(res, 500, { error: e.stderr ? e.stderr.toString() : e.message });
+    }
+  }
+
   // ── POST /api/save-slide ──
   if (req.method === "POST" && req.url === "/api/save-slide") {
     collectBody(req, MAX_BODY_SIZE, (err, body) => {
